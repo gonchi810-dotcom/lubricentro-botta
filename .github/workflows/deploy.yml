@@ -1,0 +1,20 @@
+﻿# Nombre del proceso de programación
+name: Despliegue Automático Lubricentro
+on:
+  push:
+    branches:
+      - main # Se ejecuta cada vez que subes cambios a la rama principal
+jobs:
+  deploy_site:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+
+      - name: Subir a Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: "${{ secrets.GITHUB_TOKEN }}"
+          firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_APP_GUIDO }}"
+          channelId: live
+          projectId: app-guido
