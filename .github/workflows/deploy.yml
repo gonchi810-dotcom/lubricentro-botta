@@ -18,3 +18,5 @@ jobs:
           firebaseServiceAccount: "${{ secrets.FIREBASE_SERVICE_ACCOUNT_APP_GUIDO }}"
           channelId: live
           projectId: app-guido
+          # ... (todo tu código anterior)
+          # Cambio para forzar el despliegue con el nuevo secreto
