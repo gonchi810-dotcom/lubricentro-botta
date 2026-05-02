@@ -592,7 +592,7 @@
         window.eliminarProducto = eliminarProducto;
 
         // ==========================================
-        // FORMULARIO DE TURNOS (OPTIMIZADO PARA MÓVILES)
+        // FORMULARIO DE TURNOS (SOLUCIÓN DEFINITIVA MÓVIL)
         // ==========================================
         document.getElementById('formTurnos').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -608,7 +608,9 @@
 
             estaProcesando = true;
             const btnSubmit = e.target.querySelector('button[type="submit"]');
-            btnSubmit.innerText = "Procesando...";
+            const textoOriginal = btnSubmit.innerText;
+
+            btnSubmit.innerText = "Guardando en sistema...";
             btnSubmit.disabled = true;
 
             try {
@@ -620,15 +622,12 @@
 
                     transaction.set(diaRef, { ...datos, [servicio]: cantidad + 1 }, { merge: true });
                     transaction.set(registroRef, {
-                        nombre,
-                        vehiculo: auto,
-                        servicio,
-                        fechaTurno: fecha,
+                        nombre, vehiculo: auto, servicio, fechaTurno: fecha,
                         fechaSolicitud: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 });
 
-                // 2. Construcción de enlace universal (wa.me)
+                // 2. Preparación del mensaje
                 const miTelefono = "5492214980640";
                 const mensajeTexto = `*Lubricentro Botta*%0A` +
                     `Turno Confirmado%0A` +
@@ -637,20 +636,29 @@
                     `*Servicio:* ${encodeURIComponent(servicio)}%0A` +
                     `*Fecha:* ${fecha}`;
 
-                // 3. Redirección compatible con móviles
-                // wa.me es más efectivo para disparar la apertura de la App en móviles
                 const urlFinal = `https://wa.me/${miTelefono}?text=${mensajeTexto}`;
 
-                // Usamos asignación directa para máxima compatibilidad
-                window.location = urlFinal;
+                // 3. TRANSFORMACIÓN DEL BOTÓN (Solución para móviles)
+                // Cambiamos el botón para que el usuario haga el clic que el móvil requiere
+                btnSubmit.innerText = "¡LISTO! CLICK AQUÍ PARA ENVIAR WHATSAPP";
+                btnSubmit.disabled = false;
+                btnSubmit.classList.remove('bg-gray-800');
+                btnSubmit.classList.add('bg-green-600'); // Color verde WhatsApp
+
+                // Cambiamos la función del botón dinámicamente
+                btnSubmit.onclick = () => {
+                    window.location.href = urlFinal;
+                };
+
+                alert("Datos guardados. Por favor, toca el botón verde para enviar el WhatsApp.");
 
             } catch (error) {
-                console.error("Error en la transacción:", error);
-                alert("Hubo un error técnico al procesar el turno.");
+                console.error("Error:", error);
+                alert("Error al procesar el turno.");
+                btnSubmit.innerText = textoOriginal;
+                btnSubmit.disabled = false;
             } finally {
                 estaProcesando = false;
-                btnSubmit.innerText = "SOLICITAR TURNO";
-                btnSubmit.disabled = false;
             }
         }); 
         

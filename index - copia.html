@@ -592,13 +592,12 @@
         window.eliminarProducto = eliminarProducto;
 
         // ==========================================
-        // FORMULARIO DE TURNOS CON REDIRECCIÓN DIRECTA
+        // FORMULARIO DE TURNOS (OPTIMIZADO PARA MÓVILES)
         // ==========================================
         document.getElementById('formTurnos').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (estaProcesando) return;
 
-            // Captura de datos
             const nombre = document.getElementById('nombreCliente').value;
             const auto = document.getElementById('vehiculoCliente').value;
             const servicio = document.getElementById('servicioCliente').value;
@@ -613,7 +612,7 @@
             btnSubmit.disabled = true;
 
             try {
-                // 1. Guardar en la base de datos
+                // 1. Guardado técnico en Firebase
                 await db.runTransaction(async (transaction) => {
                     const doc = await transaction.get(diaRef);
                     const datos = doc.exists ? doc.data() : {};
@@ -629,7 +628,7 @@
                     });
                 });
 
-                // 2. Construir mensaje de WhatsApp
+                // 2. Construcción de enlace universal (wa.me)
                 const miTelefono = "5492214980640";
                 const mensajeTexto = `*Lubricentro Botta*%0A` +
                     `Turno Confirmado%0A` +
@@ -638,15 +637,16 @@
                     `*Servicio:* ${encodeURIComponent(servicio)}%0A` +
                     `*Fecha:* ${fecha}`;
 
-                const urlWhatsApp = `https://api.whatsapp.com/send?phone=${miTelefono}&text=${mensajeTexto}`;
+                // 3. Redirección compatible con móviles
+                // wa.me es más efectivo para disparar la apertura de la App en móviles
+                const urlFinal = `https://wa.me/${miTelefono}?text=${mensajeTexto}`;
 
-                // 3. Redirección Directa (Evita bloqueos de popups)
-                // Esto cargará WhatsApp en la misma pestaña
-                window.location.href = urlWhatsApp;
+                // Usamos asignación directa para máxima compatibilidad
+                window.location = urlFinal;
 
             } catch (error) {
                 console.error("Error en la transacción:", error);
-                alert("Hubo un error al procesar tu turno.");
+                alert("Hubo un error técnico al procesar el turno.");
             } finally {
                 estaProcesando = false;
                 btnSubmit.innerText = "SOLICITAR TURNO";
