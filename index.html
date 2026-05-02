@@ -750,85 +750,60 @@
         }
 
         // Exponemos la función globalmente
-        window.cargarTurnosAdmin = cargarTurnosAdmin; 
+        window.cargarTurnosAdmin = cargarTurnosAdmin;
 
         // ==========================================
-        // 4. LÓGICA DE INVENTARIO EN TIEMPO REAL
+        // 1. GESTIÓN DE INVENTARIO EN TIEMPO REAL
         // ==========================================
-
-        // Función para cargar y escuchar el stock
         function cargarInventarioAdmin() {
-            const tabla = document.getElementById('lista-stock');
-            if (!tabla) return;
+            // Referencia al contenedor de la tabla en el HTML
+            const tablaStock = document.getElementById('lista-stock');
+            if (!tablaStock) {
+                console.error("Error técnico: No se encontró el elemento 'lista-stock'.");
+                return;
+            }
 
-            // Escuchador técnico de Firebase para la colección productos
+            console.log("Conectando con la colección 'productos'...");
+
+            // Escuchador en tiempo real (onSnapshot)
             db.collection("productos").orderBy("nombre").onSnapshot((snapshot) => {
-                tabla.innerHTML = ""; // Limpieza del DOM antes de actualizar
+                console.log("Inventario recibido. Productos encontrados:", snapshot.size);
+
+                // Limpiamos la tabla antes de renderizar mediante programación
+                tablaStock.innerHTML = "";
+
+                if (snapshot.empty) {
+                    tablaStock.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">No hay productos en stock.</td></tr>`;
+                    return;
+                }
+
                 snapshot.forEach((doc) => {
                     const p = doc.data();
-                    const id = doc.id;
+                    const id = doc.id; // Identificador único de Firebase
 
-                    // Lógica para determinar si hay que reponer mercadería
+                    // Lógica para el estado de stock
                     const estaBajo = p.stock <= (p.minimo || 5);
                     const badge = estaBajo ?
                         `<span class="bg-red-600 text-[10px] px-2 py-1 rounded font-bold text-white">PEDIR YA</span>` :
                         `<span class="bg-green-600 text-[10px] px-2 py-1 rounded text-white font-bold">OK</span>`;
 
-                    tabla.innerHTML += `
-                <tr class="border-b border-gray-700 hover:bg-gray-800 transition">
-                    <td class="p-4 font-bold text-gray-200">${p.nombre}</td>
-                    <td class="p-4 text-center text-xl font-mono text-white">${p.stock}</td>
+                    // Inyección de la fila en el DOM
+                    tablaStock.innerHTML += `
+                <tr class="border-b border-gray-700 hover:bg-gray-800 transition-colors">
+                    <td class="p-4 font-bold text-gray-200">${p.nombre || 'Sin nombre'}</td>
+                    <td class="p-4 text-center text-xl font-mono text-white">${p.stock || 0}</td>
                     <td class="p-4 text-center">${badge}</td>
                     <td class="p-4 text-center">
                         <button onclick="actualizarStock('${id}', 1)" class="bg-gray-600 hover:bg-green-600 px-3 py-1 rounded text-white font-bold">+</button>
                         <button onclick="actualizarStock('${id}', -1)" class="bg-gray-600 hover:bg-red-600 px-3 py-1 rounded ml-1 text-white font-bold">-</button>
-                        <button onclick="eliminarProducto('${id}')" class="ml-4 text-gray-500 hover:text-red-400 text-sm">🗑</button>
+                        <button onclick="eliminarProducto('${id}')" class="ml-4 text-gray-500 hover:text-red-400">🗑</button>
                     </td>
                 </tr>`;
                 });
+            }, (error) => {
+                console.error("Error de programación al cargar inventario:", error);
             });
-        }
-
-        // Función de programación para sumar o restar stock
-        function actualizarStock(id, cantidad) {
-            db.collection("productos").doc(id).update({
-                stock: firebase.firestore.FieldValue.increment(cantidad)
-            }).catch(error => console.error("Error al actualizar stock:", error));
-        }
-
-        // Función para eliminar un producto del inventario
-        function eliminarProducto(id) {
-            if(confirm("¿Deseas eliminar este producto permanentemente?")) {
-                db.collection("productos").doc(id).delete();
-            }
-        }
-
-        // Función para agregar nuevos productos desde el formulario de admin
-        async function agregarProducto() {
-            const nombre = document.getElementById('inv-nombre').value;
-            const stock = parseInt(document.getElementById('inv-stock').value);
-            const minimo = parseInt(document.getElementById('inv-minimo').value) || 5;
-
-            if (nombre && !isNaN(stock)) {
-                try {
-                    await db.collection("productos").add({
-                        nombre: nombre,
-                        stock: stock,
-                        minimo: minimo
-                    });
-                    // Limpieza de campos mediante programación
-                    document.getElementById('inv-nombre').value = "";
-                    document.getElementById('inv-stock').value = "";
-                    document.getElementById('inv-minimo').value = "";
-                    alert("¡Producto agregado al sistema!");
-                } catch (e) {
-                    console.error("Error al guardar producto:", e);
-                }
-            } else {
-                alert("Por favor, completa nombre y stock inicial.");
-            }
-        }
-        
+        } 
         // Exponemos las funciones al ámbito global (window)
         window.actualizarStock = actualizarStock;
         window.eliminarProducto = eliminarProducto;
