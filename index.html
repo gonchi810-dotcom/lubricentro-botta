@@ -599,51 +599,49 @@
         // Variable de control para evitar recargas innecesarias de la base de datos
         let datosCargados = false;
 
+        // Variable de control para no cargar los datos múltiples veces
+        let datosCargados = false;
+
         function accesoAdmin() {
-            // 1. Definición de variables apuntando a tus IDs reales
+            console.log("Accediendo al panel de administración..."); // Depuración básica
+
             const panelTurnos = document.getElementById('panelAdmin');
             const panelInventario = document.getElementById('admin-inventario');
 
-            // 2. Cláusula de guarda: si el panel principal no existe, detenemos la ejecución
+            // Validación de seguridad para evitar errores de null
             if (!panelTurnos) {
-                console.error("Error técnico: No se encontró 'panelAdmin' en el código HTML.");
+                console.error("Error: No se encontró el panel de turnos.");
                 return;
             }
 
-            // 3. Lógica de visualización condicional
             if (panelTurnos.classList.contains('hidden')) {
                 const password = prompt("Ingrese la clave de administrador:");
 
                 if (password === "guido2026") {
-                    // Mostramos la gestión de turnos
                     panelTurnos.classList.remove('hidden');
 
-                    // Mostramos la gestión de inventario (usando tu ID: admin-inventario)
+                    // Si el panel de inventario existe, también lo mostramos
                     if (panelInventario) {
                         panelInventario.classList.remove('hidden');
                     }
 
-                    // Cargamos datos de Firebase solo la primera vez
                     if (!datosCargados) {
                         cargarTurnosAdmin();
                         datosCargados = true;
                     }
-
-                    // Desplazamiento automático para mejor UX
                     panelTurnos.scrollIntoView({ behavior: 'smooth' });
                 } else {
-                    alert("Clave incorrecta. Acceso denegado.");
+                    alert("Clave incorrecta.");
                 }
             } else {
-                // Al volver a hacer clic, ocultamos todo el bloque administrativo
+                // Ocultamos ambos al cerrar
                 panelTurnos.classList.add('hidden');
-                if (panelInventario) {
-                    panelInventario.classList.add('hidden');
-                }
+                if (panelInventario) panelInventario.classList.add('hidden');
             }
         }
 
-        // Aseguramos que la función sea accesible desde el onclick del HTML
+        // ESTA LÍNEA ES LA MÁS IMPORTANTE:
+        // Registra la función en el ámbito global para que el HTML la encuentre
         window.accesoAdmin = accesoAdmin; 
               // ==========================================
         // 4. LÓGICA DE INVENTARIO (PEGAR AQUÍ)
