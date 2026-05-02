@@ -593,18 +593,29 @@
 
             window.open(`https://api.whatsapp.com/send?phone=${miTelefono}&text=${texto}`, '_blank');
         }
-
         function accesoAdmin() {
-            const clave = prompt("Clave de acceso:");
-            if (clave === "guido2026") { // <--- Poné la que quieras acá
-                document.getElementById('admin-inventario').style.display = 'block';
-                window.location.href = "#admin-inventario";
+            const panel = document.getElementById('panelAdmin');
+
+            // Si el panel se va a mostrar, pedimos una clave
+            if (panel.classList.contains('hidden')) {
+                const password = prompt("Ingrese la clave de administrador:");
+
+                // Validación de programación simple
+                if (password === "guido2026") { // Cambia "1234" por tu clave real
+                    panel.classList.remove('hidden');
+                    if (!datosCargados) {
+                        cargarTurnosAdmin();
+                        datosCargados = true;
+                    }
+                    panel.scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    alert("Clave incorrecta. Acceso denegado.");
+                }
             } else {
-                alert("Clave incorrecta");
+                panel.classList.add('hidden');
             }
         }
-
-        // ==========================================
+              // ==========================================
         // 4. LÓGICA DE INVENTARIO (PEGAR AQUÍ)
         // ==========================================
 
