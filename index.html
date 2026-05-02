@@ -653,76 +653,76 @@
                 }
             }
         }
-        window.accesoAdmin = accesoAdmin; 
+        window.accesoAdmin = accesoAdmin;
 
         // ==========================================
-        // 3. GESTIÓN DE TURNOS EN TIEMPO REAL
+        // GESTIÓN DE TURNOS EN TIEMPO REAL (VERSIÓN FINAL)
         // ==========================================
         function cargarTurnosAdmin() {
             const tbody = document.getElementById('tabla-turnos-body');
             if (!tbody) return;
 
+            // Pedimos permiso para notificaciones si no lo tenemos
             if (Notification.permission !== "granted") {
                 Notification.requestPermission();
             }
 
-            // Escuchador persistente
+            // Escuchador persistente de la colección registros_turnos
             db.collection("registros_turnos")
                 .orderBy("fechaSolicitud", "desc")
                 .onSnapshot((snapshot) => {
 
-                    // Detectar nuevos turnos para notificaciones
+                    // Lógica para notificaciones de escritorio
                     snapshot.docChanges().forEach((change) => {
                         if (change.type === "added" && inicializacionCompleta) {
                             enviarAlertaSistema(change.doc.data());
                         }
                     });
 
+                    // Limpiamos y redibujamos la tabla
                     tbody.innerHTML = "";
                     snapshot.forEach((doc) => {
                         const turno = doc.data();
-                        const idDoc = doc.id;
+                        const idDoc = doc.id; // Identificador único para el borrado
+
                         tbody.innerHTML += `
-                    <tr class="border-b border-gray-800 hover:bg-gray-800">
-                        <td class="p-2">${turno.fechaTurno}</td>
-                        <td class="p-2 font-bold">${turno.nombre}</td>
-                        <td class="p-2">${turno.vehiculo}</td>
-                        <td class="p-2">${turno.servicio}</td>
+                    <tr class="border-b border-gray-800 hover:bg-gray-800 transition-colors">
+                        <td class="p-2">${turno.fechaTurno || '---'}</td>
+                        <td class="p-2 font-bold">${turno.nombre || '---'}</td>
+                        <td class="p-2">${turno.vehiculo || '---'}</td>
+                        <td class="p-2">${turno.servicio || '---'}</td>
                         <td class="p-2">
-                            <button onclick="borrarRegistro('${idDoc}')" class="bg-red-600 text-white px-3 py-1 rounded text-sm">
+                            <button onclick="borrarRegistro('${idDoc}')" class="bg-red-600 hover:bg-red-800 text-white px-3 py-1 rounded text-sm transition shadow-sm">
                                 Eliminar
                             </button>
                         </td>
                     </tr>`;
                     });
+
+                    // Activamos la bandera tras la primera carga completa
                     inicializacionCompleta = true;
                 }, (error) => {
-                    console.error("Error en tiempo real:", error);
+                    console.error("Error de programación en Firebase:", error);
                 });
         }
 
-        function enviarAlertaSistema(datos) {
-            if (Notification.permission === "granted") {
-                const notificacion = new Notification("NUEVO TURNO: " + datos.nombre, {
-                    body: `Vehículo: ${datos.vehiculo}\nServicio: ${datos.servicio}`,
-                    icon: "favicon.png"
-                });
-                notificacion.onclick = () => window.focus();
-            }
-        }
-
+        // Función de borrado definitivo
         async function borrarRegistro(id) {
-            if (confirm("¿Estás seguro de que deseas eliminar este registro?")) {
+            if (confirm("¿Estás seguro de que deseas eliminar este turno?")) {
                 try {
+                    // Borrado en la nube usando el parámetro ID
                     await db.collection("registros_turnos").doc(id).delete();
-                    console.log("Registro eliminado");
-                    // No hace falta llamar a cargarTurnosAdmin() porque onSnapshot lo hace solo
+                    console.log("Turno eliminado con éxito.");
+                    // No es necesario llamar a cargarTurnosAdmin() aquí, onSnapshot lo hace solo
                 } catch (error) {
-                    console.error("Error al borrar:", error);
+                    console.error("Error al intentar borrar el registro:", error);
                 }
             }
         }
-        window.borrarRegistro = borrarRegistro;
+
+        // Exposición global de las funciones
+        window.cargarTurnosAdmin = cargarTurnosAdmin;
+        window.borrarRegistro = borrarRegistro; 
 
         // ==========================================
         // 4. LÓGICA DE INVENTARIO EN TIEMPO REAL
