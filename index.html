@@ -592,7 +592,7 @@
         window.eliminarProducto = eliminarProducto;
 
         // ==========================================
-        // FORMULARIO DE TURNOS (SOLUCIÓN DEFINITIVA MÓVIL)
+        // FORMULARIO DE TURNOS (HÍBRIDO PC/MÓVIL)
         // ==========================================
         document.getElementById('formTurnos').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -606,15 +606,18 @@
             const diaRef = db.collection("cupos").doc(fecha);
             const registroRef = db.collection("registros_turnos").doc();
 
+            // Detección técnica de dispositivo móvil
+            const esMovil = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
             estaProcesando = true;
             const btnSubmit = e.target.querySelector('button[type="submit"]');
             const textoOriginal = btnSubmit.innerText;
 
-            btnSubmit.innerText = "Guardando en sistema...";
+            btnSubmit.innerText = "Guardando turno...";
             btnSubmit.disabled = true;
 
             try {
-                // 1. Guardado técnico en Firebase
+                // 1. Guardado en Firebase
                 await db.runTransaction(async (transaction) => {
                     const doc = await transaction.get(diaRef);
                     const datos = doc.exists ? doc.data() : {};
@@ -627,7 +630,7 @@
                     });
                 });
 
-                // 2. Preparación del mensaje
+                // 2. Preparación del mensaje de WhatsApp
                 const miTelefono = "5492214980640";
                 const mensajeTexto = `*Lubricentro Botta*%0A` +
                     `Turno Confirmado%0A` +
@@ -638,19 +641,22 @@
 
                 const urlFinal = `https://wa.me/${miTelefono}?text=${mensajeTexto}`;
 
-                // 3. TRANSFORMACIÓN DEL BOTÓN (Solución para móviles)
-                // Cambiamos el botón para que el usuario haga el clic que el móvil requiere
-                btnSubmit.innerText = "¡LISTO! CLICK AQUÍ PARA ENVIAR WHATSAPP";
-                btnSubmit.disabled = false;
-                btnSubmit.classList.remove('bg-gray-800');
-                btnSubmit.classList.add('bg-green-600'); // Color verde WhatsApp
-
-                // Cambiamos la función del botón dinámicamente
-                btnSubmit.onclick = () => {
+                // 3. LÓGICA DE REDIRECCIÓN SEGÚN DISPOSITIVO
+                if (esMovil) {
+                    // En celulares: Mostramos el botón verde para asegurar el envío
+                    btnSubmit.innerText = "ENVIAR WHATSAPP (CLICK AQUÍ)";
+                    btnSubmit.disabled = false;
+                    btnSubmit.classList.replace('bg-gray-800', 'bg-green-600');
+                    btnSubmit.onclick = () => {
+                        window.location.href = urlFinal;
+                    };
+                    alert("Turno guardado. Toca el botón verde para finalizar en WhatsApp.");
+                } else {
+                    // En PC: Redirección automática inmediata
                     window.location.href = urlFinal;
-                };
-
-                alert("Datos guardados. Por favor, toca el botón verde para enviar el WhatsApp.");
+                    alert("¡Turno registrado con éxito!");
+                    e.target.reset();
+                }
 
             } catch (error) {
                 console.error("Error:", error);
