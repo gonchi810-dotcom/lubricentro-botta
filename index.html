@@ -756,69 +756,66 @@
         // 1. GESTIÓN DE INVENTARIO EN TIEMPO REAL
         // ==========================================
         function cargarInventarioAdmin() {
-            // Referencia al contenedor de la tabla en el HTML
             const tablaStock = document.getElementById('lista-stock');
-            if (!tablaStock) {
-                console.error("Error técnico: No se encontró el elemento 'lista-stock'.");
-                return;
-            }
+            if (!tablaStock) return;
 
-            console.log("Conectando con la colección 'productos'...");
+            console.log("Iniciando conexión con la colección 'productos'...");
 
-            // Escuchador en tiempo real (onSnapshot)
+            // Escuchador en tiempo real para el stock
             db.collection("productos").orderBy("nombre").onSnapshot((snapshot) => {
-                console.log("Inventario recibido. Productos encontrados:", snapshot.size);
+                console.log("Inventario actualizado. Cantidad de productos:", snapshot.size);
 
-                // Limpiamos la tabla antes de renderizar mediante programación
+                // Limpiamos la tabla antes de renderizar
                 tablaStock.innerHTML = "";
 
                 if (snapshot.empty) {
-                    tablaStock.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">No hay productos en stock.</td></tr>`;
+                    tablaStock.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">No hay productos cargados.</td></tr>`;
                     return;
                 }
 
                 snapshot.forEach((doc) => {
-                    const p = doc.data();
-                    const id = doc.id; // Identificador único de Firebase
+                    const p = doc.data(); // Captura los campos: nombre, stock, minimo
+                    const id = doc.id;
 
-                    // Lógica para el estado de stock
+                    // Lógica de estado visual (basada en el campo 'minimo' de tu captura)
                     const estaBajo = p.stock <= (p.minimo || 5);
                     const badge = estaBajo ?
                         `<span class="bg-red-600 text-[10px] px-2 py-1 rounded font-bold text-white">PEDIR YA</span>` :
                         `<span class="bg-green-600 text-[10px] px-2 py-1 rounded text-white font-bold">OK</span>`;
 
-                    // Inyección de la fila en el DOM
+                    // Generamos la fila de la tabla
                     tablaStock.innerHTML += `
-                <tr class="border-b border-gray-700 hover:bg-gray-800 transition-colors">
+                <tr class="border-b border-gray-700 hover:bg-gray-800 transition">
                     <td class="p-4 font-bold text-gray-200">${p.nombre || 'Sin nombre'}</td>
                     <td class="p-4 text-center text-xl font-mono text-white">${p.stock || 0}</td>
                     <td class="p-4 text-center">${badge}</td>
                     <td class="p-4 text-center">
                         <button onclick="actualizarStock('${id}', 1)" class="bg-gray-600 hover:bg-green-600 px-3 py-1 rounded text-white font-bold">+</button>
                         <button onclick="actualizarStock('${id}', -1)" class="bg-gray-600 hover:bg-red-600 px-3 py-1 rounded ml-1 text-white font-bold">-</button>
-                        <button onclick="eliminarProducto('${id}')" class="ml-4 text-gray-500 hover:text-red-400">🗑</button>
                     </td>
                 </tr>`;
                 });
             }, (error) => {
-                console.error("Error de programación al cargar inventario:", error);
+                console.error("Error de programación en inventario:", error);
             });
         }
 
         // ==========================================
-        // 2. ACTUALIZACIÓN DE ACCESO ADMIN
+        // 3. ACTUALIZACIÓN DE ACCESO ADMIN
         // ==========================================
         function accesoAdmin() {
-            const password = prompt("Ingrese la clave:");
+            const password = prompt("Clave de administrador:");
             if (password === "guido2026") {
                 document.getElementById('panelAdmin').classList.remove('hidden');
                 document.getElementById('admin-inventario').style.display = "block";
 
+                // Llamada técnica para cargar ambos paneles
                 if (!datosCargados) {
-                    cargarTurnosAdmin();     // Esta ya te funciona
-                    cargarInventarioAdmin();  // ACTIVAMOS ESTA PARA EL STOCK
+                    cargarTurnosAdmin();      // Ya te funciona
+                    cargarInventarioAdmin();   // ESTA ES LA QUE TE FALTA ACTIVAR
                     datosCargados = true;
                 }
+                document.getElementById('panelAdmin').scrollIntoView({ behavior: 'smooth' });
             } else {
                 alert("Clave incorrecta.");
             }
