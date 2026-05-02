@@ -492,25 +492,22 @@
         const db = firebase.firestore();
         firebase.analytics();
 
-        // --- LÓGICA DE SOLICITUD DE TURNO (CORREGIDA) ---
+        // --- LÓGICA DE SOLICITUD DE TURNO (CORRECCIÓN TÉCNICA) ---
         document.getElementById('formTurnos').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (estaProcesando) return;
 
-            // 1. Captura y validación básica mediante programación
             const fecha = document.getElementById('fechaTurno').value;
             const servicio = document.getElementById('servicioCliente').value;
             const nombre = document.getElementById('nombreCliente').value;
             const auto = document.getElementById('vehiculoCliente').value;
 
-            if (!fecha || !servicio || !nombre || !auto) {
-                alert("Por favor, completa todos los campos del formulario.");
-                return;
-            }
-
-            // Referencias técnicas a las colecciones de Firebase
+            // Referencias técnicas a las colecciones
             const diaRef = db.collection("cupos").doc(fecha);
-            const registroRef = db.collection("registros_turnos").doc(); // Genera el ID del nuevo registro
+
+            // PASO 1: Generar una referencia con ID automático para el registro
+            // Esto asegura que tengamos un lugar donde guardar los datos del cliente
+            const registroRef = db.collection("registros_turnos").doc();
 
             estaProcesando = true;
             const btnSubmit = e.target.querySelector('button[type="submit"]');
@@ -518,8 +515,6 @@
             btnSubmit.disabled = true;
 
             try {
-                console.log("Iniciando transacción para el cliente:", nombre);
-
                 await db.runTransaction(async (transaction) => {
                     const doc = await transaction.get(diaRef);
                     const datos = doc.exists ? doc.data() : {};
@@ -536,41 +531,40 @@
                         throw "Cupo lleno";
                     }
 
-                    // PASO A: Actualizar el cupo del día
+                    // PASO 2: Actualizar el cupo global (Esto sí te funcionaba)
                     transaction.set(diaRef, {
                         ...datos,
                         [servicio]: cantidadActual + 1
                     }, { merge: true });
 
-                    // PASO B: Crear físicamente el registro en la colección 'registros_turnos'
-                    // Esto es lo que hará que la colección aparezca en tu consola de Firebase
+                    // PASO 3: Guardar el registro detallado (Esto es lo que falta)
+                    // Usamos transaction.set para que se guarde junto con el cupo
                     transaction.set(registroRef, {
                         nombre: nombre,
                         vehiculo: auto,
                         servicio: servicio,
                         fechaTurno: fecha,
-                        fechaSolicitud: firebase.firestore.FieldValue.serverTimestamp(),
+                        fechaSolicitud: firebase.firestore.FieldValue.serverTimestamp(), // Hora oficial del servidor
                         estado: "confirmado"
                     });
                 });
 
-                console.log("¡Éxito! Registro guardado con ID:", registroRef.id);
                 alert("¡Turno registrado con éxito!");
                 e.target.reset();
 
             } catch (error) {
-                console.error("ERROR TÉCNICO AL GUARDAR:", error);
+                console.error("ERROR DE PROGRAMACIÓN AL GUARDAR:", error);
                 if (error === "Cupo lleno") {
-                    alert("Lo sentimos, no hay cupos para esa fecha.");
+                    alert("No hay más cupos para este servicio.");
                 } else {
-                    alert("Hubo un error al guardar el registro. Revisa la consola para más detalles.");
+                    alert("Hubo un problema técnico al guardar el turno.");
                 }
             } finally {
                 estaProcesando = false;
                 btnSubmit.innerText = "SOLICITAR TURNO";
                 btnSubmit.disabled = false;
             }
-        }); 
+        });
 
         function enviarWhatsApp() {
             const nombre = document.getElementById('nombreCliente').value;
