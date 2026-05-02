@@ -85,7 +85,7 @@
                     TURNOS
                 </a>
             </li>
-            <li><a href="#novedades" class="hover:text-yellow-400 transition text-sm font-bold uppercase">Novedades</a></li>
+            <li><a href="#novedades" class="hover:text-[#7a9f01] transition text-sm font-bold uppercase">Novedades</a></li>
         </ul>
 
     </div>
@@ -472,16 +472,15 @@
         const db = firebase.firestore();
         firebase.analytics();
 
-        // FUNCIÓN PARA SOLICITAR TURNO CON CUPO GLOBAL
-        // Variable de seguridad para evitar múltiples envíos
+        // FUNCIÓN PARA SOLICITAR TURNO CON CUPO GLOBAL Y REGISTRO DE CLIENTE
         let estaProcesando = false;
 
         document.getElementById('formTurnos').addEventListener('submit', async function(e) {
             e.preventDefault();
 
-            // Si ya se está procesando uno, no hacer nada
             if (estaProcesando) return;
 
+            // 1. Captura de variables de los elementos del DOM
             const fecha = document.getElementById('fechaTurno').value;
             const servicio = document.getElementById('servicioCliente').value;
             const nombre = document.getElementById('nombreCliente').value;
@@ -494,42 +493,63 @@
                 "Baterías": 6
             };
 
+            // Referencias de programación a Firestore
             const diaRef = db.collection("cupos").doc(fecha);
+            const nuevoTurnoRef = db.collection("registros_turnos").doc(); // Genera un ID automático
 
-            // Bloqueamos el proceso
             estaProcesando = true;
             const btnSubmit = e.target.querySelector('button[type="submit"]');
+            const textoOriginal = btnSubmit.innerText;
             btnSubmit.innerText = "Procesando...";
             btnSubmit.disabled = true;
 
             try {
                 await db.runTransaction(async (transaction) => {
+                    // Lógica de control de cupos
                     const doc = await transaction.get(diaRef);
                     const datos = doc.exists ? doc.data() : {};
                     const cantidadActual = datos[servicio] || 0;
 
                     if (cantidadActual >= LIMITES[servicio]) {
-                        alert(`¡Cupos agotados para ${servicio}!`);
-                        throw "Cupo lleno";
+                        throw "Cupo lleno"; // Cancela la transacción si no hay lugar
                     }
 
+                    // A. Incrementamos el contador de cupos
                     transaction.set(diaRef, {
                         ...datos,
                         [servicio]: cantidadActual + 1
                     }, { merge: true });
 
-                    // ENVIAR WHATSAPP (Solo una vez)
-                    const miTelefono = "5492214980640"; // TU NÚMERO REAL AQUÍ
-                    const texto = `Hola Lubricentro Guido!%0A*Turno Confirmado*%0A*Nombre:* ${nombre}%0A*Vehículo:* ${auto}%0A*Servicio:* ${servicio}%0A*Fecha:* ${fecha}`;
-
-                    window.location.href = `https://api.whatsapp.com/send?phone=${miTelefono}&text=${texto}`;
+                    // B. Guardamos el registro de la persona (Tu objetivo principal)
+                    transaction.set(nuevoTurnoRef, {
+                        cliente: nombre,
+                        vehiculo: auto,
+                        servicio_solicitado: servicio,
+                        fecha_turno: fecha,
+                        estado: "confirmado",
+                        creado_en: new Date()
+                    });
                 });
+
+                // 2. Si llegamos aquí, la transacción fue exitosa
+                const miTelefono = "5492214980640";
+                const texto = `Hola Lubricentro Guido!%0A*Turno Confirmado*%0A*Nombre:* ${nombre}%0A*Vehículo:* ${auto}%0A*Servicio:* ${servicio}%0A*Fecha:* ${fecha}`;
+
+                window.open(`https://wa.me/${miTelefono}?text=${texto}`, '_blank');
+                alert("¡Turno confirmado y registrado correctamente!");
+                e.target.reset();
+
             } catch (error) {
-                console.log("Error:", error);
+                if (error === "Cupo lleno") {
+                    alert(`¡Lo sentimos! Ya no hay cupos disponibles para ${servicio} en la fecha seleccionada.`);
+                } else {
+                    console.error("Error técnico de programación:", error);
+                    alert("Hubo un error al procesar el turno. Intenta nuevamente.");
+                }
             } finally {
-                // Liberamos para el próximo uso
+                // Restauramos el estado del botón
                 estaProcesando = false;
-                btnSubmit.innerText = "SOLICITAR TURNO";
+                btnSubmit.innerText = textoOriginal;
                 btnSubmit.disabled = false;
             }
         }); 
