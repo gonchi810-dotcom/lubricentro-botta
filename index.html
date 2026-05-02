@@ -596,38 +596,54 @@
         // Variable global para controlar la carga de datos
         let datosCargados = false;
 
-        function accesoAdmin() {
-            // 1. Buscamos el elemento en el DOM
-            const panel = document.getElementById('panelAdmin');
+        // Variable de control para evitar recargas innecesarias de la base de datos
+        let datosCargados = false;
 
-            // 2. Validación de seguridad: Si el panel no existe, salimos de la función
-            if (!panel) {
-                console.error("Error de programación: No se encontró el elemento con ID 'panelAdmin'. Verifica tu HTML.");
+        function accesoAdmin() {
+            // 1. Definición de variables apuntando a tus IDs reales
+            const panelTurnos = document.getElementById('panelAdmin');
+            const panelInventario = document.getElementById('admin-inventario');
+
+            // 2. Cláusula de guarda: si el panel principal no existe, detenemos la ejecución
+            if (!panelTurnos) {
+                console.error("Error técnico: No se encontró 'panelAdmin' en el código HTML.");
                 return;
             }
 
-            // 3. Lógica de visibilidad y contraseña
-            if (panel.classList.contains('hidden')) {
+            // 3. Lógica de visualización condicional
+            if (panelTurnos.classList.contains('hidden')) {
                 const password = prompt("Ingrese la clave de administrador:");
 
-                if (password === "1234") {
-                    panel.classList.remove('hidden');
+                if (password === "guido2026") {
+                    // Mostramos la gestión de turnos
+                    panelTurnos.classList.remove('hidden');
 
-                    // Solo cargamos los datos de Firebase si no se hicieron antes
+                    // Mostramos la gestión de inventario (usando tu ID: admin-inventario)
+                    if (panelInventario) {
+                        panelInventario.classList.remove('hidden');
+                    }
+
+                    // Cargamos datos de Firebase solo la primera vez
                     if (!datosCargados) {
                         cargarTurnosAdmin();
                         datosCargados = true;
                     }
-                    panel.scrollIntoView({ behavior: 'smooth' });
+
+                    // Desplazamiento automático para mejor UX
+                    panelTurnos.scrollIntoView({ behavior: 'smooth' });
                 } else {
-                    alert("Clave incorrecta.");
+                    alert("Clave incorrecta. Acceso denegado.");
                 }
             } else {
-                panel.classList.add('hidden');
+                // Al volver a hacer clic, ocultamos todo el bloque administrativo
+                panelTurnos.classList.add('hidden');
+                if (panelInventario) {
+                    panelInventario.classList.add('hidden');
+                }
             }
         }
 
-        // 4. Exponer la función al objeto global para que el 'onclick' del HTML la encuentre
+        // Aseguramos que la función sea accesible desde el onclick del HTML
         window.accesoAdmin = accesoAdmin; 
               // ==========================================
         // 4. LÓGICA DE INVENTARIO (PEGAR AQUÍ)
