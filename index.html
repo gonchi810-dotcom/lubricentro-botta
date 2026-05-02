@@ -598,11 +598,14 @@
             console.log("Intentando acceder al panel...");
 
             var panelTurnos = document.getElementById('panelAdmin');
-            // Usamos el ID que mencionaste: admin-inventario
             var panelInventario = document.getElementById('admin-inventario');
 
+            // Verificación de seguridad en la consola
+            console.log("Estado de panelTurnos:", panelTurnos);
+            console.log("Estado de panelInventario:", panelInventario);
+
             if (!panelTurnos) {
-                console.error("No se encontró 'panelAdmin'. Revisa el ID en tu HTML.");
+                console.error("Error: No se encontró 'panelAdmin'. Revisa el ID en tu HTML.");
                 return;
             }
 
@@ -610,15 +613,17 @@
                 var password = prompt("Ingrese la clave de administrador:");
 
                 if (password === "guido2026") {
-                    // Mostramos el panel de Turnos
+                    // Mostramos los turnos
                     panelTurnos.classList.remove('hidden');
 
-                    // Lógica de programación para mostrar el Inventario si existe
+                    // Mostramos el inventario con una validación extra
                     if (panelInventario) {
-                        console.log("Mostrando panel de inventario...");
                         panelInventario.classList.remove('hidden');
+                        // Forzado de seguridad por si la clase no responde
+                        panelInventario.style.display = "block";
+                        console.log("Se quitó 'hidden' y se aplicó display:block al inventario.");
                     } else {
-                        console.warn("No se encontró el elemento 'admin-inventario' en el HTML.");
+                        console.warn("Atención: El elemento con ID 'admin-inventario' no existe en este archivo HTML.");
                     }
 
                     if (!datosCargados) {
@@ -630,17 +635,16 @@
                     alert("Clave incorrecta.");
                 }
             } else {
-                // Al cerrar, ocultamos ambos paneles
+                // Al cerrar, ocultamos ambos
                 panelTurnos.classList.add('hidden');
                 if (panelInventario) {
                     panelInventario.classList.add('hidden');
+                    panelInventario.style.display = "none";
                 }
             }
         }
 
-        // Mantenemos la disponibilidad global
         window.accesoAdmin = accesoAdmin; 
-        
               // ==========================================
         // 4. LÓGICA DE INVENTARIO (PEGAR AQUÍ)
         // ==========================================
