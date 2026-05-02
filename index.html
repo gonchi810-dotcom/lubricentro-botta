@@ -592,32 +592,32 @@
         window.eliminarProducto = eliminarProducto;
 
         // ==========================================
-        // FORMULARIO DE TURNOS (HÍBRIDO PC/MÓVIL)
+        // EVENTO DE TURNO (SOLUCIÓN DEFINITIVA PC/MÓVIL)
         // ==========================================
         document.getElementById('formTurnos').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (estaProcesando) return;
 
+            // Captura de datos del formulario
             const nombre = document.getElementById('nombreCliente').value;
             const auto = document.getElementById('vehiculoCliente').value;
             const servicio = document.getElementById('servicioCliente').value;
             const fecha = document.getElementById('fechaTurno').value;
 
+            // Referencias de Firebase
             const diaRef = db.collection("cupos").doc(fecha);
             const registroRef = db.collection("registros_turnos").doc();
 
-            // Detección técnica de dispositivo móvil
+            // Detección de dispositivo móvil
             const esMovil = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
             estaProcesando = true;
             const btnSubmit = e.target.querySelector('button[type="submit"]');
-            const textoOriginal = btnSubmit.innerText;
-
-            btnSubmit.innerText = "Guardando turno...";
+            btnSubmit.innerText = "Guardando...";
             btnSubmit.disabled = true;
 
             try {
-                // 1. Guardado en Firebase
+                // 1. Guardado en la base de datos
                 await db.runTransaction(async (transaction) => {
                     const doc = await transaction.get(diaRef);
                     const datos = doc.exists ? doc.data() : {};
@@ -632,39 +632,34 @@
 
                 // 2. Preparación del mensaje de WhatsApp
                 const miTelefono = "5492214980640";
-                const mensajeTexto = `*Lubricentro Botta*%0A` +
+                const mensaje = `*Lubricentro Botta*%0A` +
                     `Turno Confirmado%0A` +
                     `*Cliente:* ${encodeURIComponent(nombre)}%0A` +
                     `*Vehículo:* ${encodeURIComponent(auto)}%0A` +
                     `*Servicio:* ${encodeURIComponent(servicio)}%0A` +
                     `*Fecha:* ${fecha}`;
 
-                const urlFinal = `https://wa.me/${miTelefono}?text=${mensajeTexto}`;
+                const urlFinal = `https://wa.me/${miTelefono}?text=${mensaje}`;
 
-                // 3. LÓGICA DE REDIRECCIÓN SEGÚN DISPOSITIVO
+                // 3. EJECUCIÓN SEGÚN DISPOSITIVO
                 if (esMovil) {
-                    // En celulares: Mostramos el botón verde para asegurar el envío
-                    btnSubmit.innerText = "ENVIAR WHATSAPP (CLICK AQUÍ)";
-                    btnSubmit.disabled = false;
-                    btnSubmit.classList.replace('bg-gray-800', 'bg-green-600');
-                    btnSubmit.onclick = () => {
-                        window.location.href = urlFinal;
-                    };
-                    alert("Turno guardado. Toca el botón verde para finalizar en WhatsApp.");
+                    // En celulares: Redirigimos ANTES del alert para evitar bloqueos del sistema
+                    window.location.assign(urlFinal);
                 } else {
-                    // En PC: Redirección automática inmediata
+                    // En PC: Alert y luego redirección
+                    alert("¡Turno guardado con éxito!");
                     window.location.href = urlFinal;
-                    alert("¡Turno registrado con éxito!");
-                    e.target.reset();
                 }
 
+                e.target.reset();
+
             } catch (error) {
-                console.error("Error:", error);
-                alert("Error al procesar el turno.");
-                btnSubmit.innerText = textoOriginal;
-                btnSubmit.disabled = false;
+                console.error("Error técnico:", error);
+                alert("Hubo un error al procesar el código del turno.");
             } finally {
                 estaProcesando = false;
+                btnSubmit.innerText = "SOLICITAR TURNO";
+                btnSubmit.disabled = false;
             }
         }); 
         
