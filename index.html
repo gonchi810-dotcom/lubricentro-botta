@@ -803,7 +803,27 @@
             }, (error) => {
                 console.error("Error de programación al cargar inventario:", error);
             });
-        } 
+        }
+
+        // ==========================================
+        // 2. ACTUALIZACIÓN DE ACCESO ADMIN
+        // ==========================================
+        function accesoAdmin() {
+            const password = prompt("Ingrese la clave:");
+            if (password === "guido2026") {
+                document.getElementById('panelAdmin').classList.remove('hidden');
+                document.getElementById('admin-inventario').style.display = "block";
+
+                if (!datosCargados) {
+                    cargarTurnosAdmin();     // Esta ya te funciona
+                    cargarInventarioAdmin();  // ACTIVAMOS ESTA PARA EL STOCK
+                    datosCargados = true;
+                }
+            } else {
+                alert("Clave incorrecta.");
+            }
+        }
+        window.accesoAdmin = accesoAdmin; 
         // Exponemos las funciones al ámbito global (window)
         window.actualizarStock = actualizarStock;
         window.eliminarProducto = eliminarProducto;
