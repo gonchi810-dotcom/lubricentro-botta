@@ -663,7 +663,7 @@
             if (panelTurnos.classList.contains('hidden')) {
                 var password = prompt("Ingrese la clave de administrador:");
 
-                if (password === "1234") {
+                if (password === "guido2026") {
                     panelTurnos.classList.remove('hidden');
 
                     if (panelInventario) {
@@ -834,6 +834,107 @@
         window.eliminarProducto = eliminarProducto;
         window.agregarProducto = agregarProducto;
 
+        document.getElementById('formTurnos').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            if (estaProcesando) return;
+
+            // Captura de datos del DOM
+            const fecha = document.getElementById('fechaTurno').value;
+            const servicio = document.getElementById('servicioCliente').value;
+            const nombre = document.getElementById('nombreCliente').value;
+            const auto = document.getElementById('vehiculoCliente').value;
+
+            if (!fecha || !nombre) {
+                alert("Por favor completa los datos básicos.");
+                return;
+            }
+
+            // Referencias de programación
+            const diaRef = db.collection("cupos").doc(fecha);
+            const registroRef = db.collection("registros_turnos").doc(); // Genera un ID único
+
+            estaProcesando = true;
+            const btnSubmit = e.target.querySelector('button[type="submit"]');
+            btnSubmit.innerText = "Procesando...";
+            btnSubmit.disabled = true;
+
+            try {
+                await db.runTransaction(async (transaction) => {
+                    const doc = await transaction.get(diaRef);
+                    const datos = doc.exists ? doc.data() : {};
+                    const cantidadActual = datos[servicio] || 0;
+
+                    const LIMITES = {
+                        "Cambio de Aceite": 5,
+                        "Mecánica Ligera": 2,
+                        "Frenos/Suspensión": 4,
+                        "Diagnostico Computarizado": 4
+                    };
+
+                    if (cantidadActual >= (LIMITES[servicio] || 5)) {
+                        throw "Cupo lleno";
+                    }
+
+                    // PASO 1: Actualizar contador de cupos
+                    transaction.set(diaRef, {
+                        ...datos,
+                        [servicio]: cantidadActual + 1
+                    }, { merge: true });
+
+                    // PASO 2: CREAR EL REGISTRO DEL CLIENTE (Lo que faltaba)
+                    transaction.set(registroRef, {
+                        nombre: nombre,
+                        vehiculo: auto,
+                        servicio: servicio,
+                        fechaTurno: fecha,
+                        fechaSolicitud: firebase.firestore.FieldValue.serverTimestamp(),
+                        estado: "confirmado"
+                    });
+                });
+
+                alert("¡Turno registrado con éxito!");
+                // Aquí puedes llamar a tu función de enviar WhatsApp si la tienes
+                e.target.reset();
+
+            } catch (error) {
+                console.error("Error técnico:", error);
+                alert(error === "Cupo lleno" ? "Lo sentimos, no hay cupos." : "Hubo un problema al guardar.");
+            } finally {
+                estaProcesando = false;
+                btnSubmit.innerText = "SOLICITAR TURNO";
+                btnSubmit.disabled = false;
+            }
+        });
+
+       
+        function cargarTurnosAdmin() {
+            const tbody = document.getElementById('tabla-turnos-body');
+            if (!tbody) return;
+
+            // Escuchador en tiempo real para la colección correcta
+            db.collection("registros_turnos")
+                .orderBy("fechaSolicitud", "desc")
+                .onSnapshot((snapshot) => {
+                    console.log("Datos recibidos de Firebase. Cantidad:", snapshot.size);
+                    tbody.innerHTML = "";
+
+                    snapshot.forEach((doc) => {
+                        const t = doc.data();
+                        tbody.innerHTML += `
+                    <tr class="border-b border-gray-800">
+                        <td class="p-2">${t.fechaTurno}</td>
+                        <td class="p-2 font-bold">${t.nombre}</td>
+                        <td class="p-2">${t.vehiculo}</td>
+                        <td class="p-2">${t.servicio}</td>
+                        <td class="p-2">
+                            <button onclick="borrarRegistro('${doc.id}')" class="bg-red-600 px-2 rounded">X</button>
+                        </td>
+                    </tr>`;
+                    });
+                });
+        }
+        
         async function eliminarTurno(id) {
             if (confirm("¿Estás seguro de que deseas eliminar este turno?")) {
                 try {
