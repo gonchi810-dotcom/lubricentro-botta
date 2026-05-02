@@ -289,7 +289,7 @@
     </section>
 
 <!-- Añadimos 'hidden' para que no se vea al cargar el sitio -->
-<section id="admin-panel" class="hidden p-8 bg-gray-900 text-white">
+<section id="panelAdmin" class="hidden p-8 bg-gray-900 text-white">
     <h2 class="text-2xl font-bold mb-4">Gestión de Turnos</h2>
     <div class="overflow-x-auto">
         <table class="w-full text-left border-collapse">
@@ -593,28 +593,42 @@
 
             window.open(`https://api.whatsapp.com/send?phone=${miTelefono}&text=${texto}`, '_blank');
         }
+        // Variable global para controlar la carga de datos
+        let datosCargados = false;
+
         function accesoAdmin() {
+            // 1. Buscamos el elemento en el DOM
             const panel = document.getElementById('panelAdmin');
 
-            // Si el panel se va a mostrar, pedimos una clave
+            // 2. Validación de seguridad: Si el panel no existe, salimos de la función
+            if (!panel) {
+                console.error("Error de programación: No se encontró el elemento con ID 'panelAdmin'. Verifica tu HTML.");
+                return;
+            }
+
+            // 3. Lógica de visibilidad y contraseña
             if (panel.classList.contains('hidden')) {
                 const password = prompt("Ingrese la clave de administrador:");
 
-                // Validación de programación simple
-                if (password === "guido2026") { // Cambia "1234" por tu clave real
+                if (password === "1234") {
                     panel.classList.remove('hidden');
+
+                    // Solo cargamos los datos de Firebase si no se hicieron antes
                     if (!datosCargados) {
                         cargarTurnosAdmin();
                         datosCargados = true;
                     }
                     panel.scrollIntoView({ behavior: 'smooth' });
                 } else {
-                    alert("Clave incorrecta. Acceso denegado.");
+                    alert("Clave incorrecta.");
                 }
             } else {
                 panel.classList.add('hidden');
             }
         }
+
+        // 4. Exponer la función al objeto global para que el 'onclick' del HTML la encuentre
+        window.accesoAdmin = accesoAdmin; 
               // ==========================================
         // 4. LÓGICA DE INVENTARIO (PEGAR AQUÍ)
         // ==========================================
