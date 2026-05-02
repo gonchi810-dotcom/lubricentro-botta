@@ -599,35 +599,53 @@
         // ==========================================
         var datosCargados = false;
         var inicializacionCompleta = false;
-
+        
         // ==========================================
-        // 2. FUNCIÓN DE ACCESO ADMIN
+        // 2. FUNCIÓN DE ACCESO ADMIN (ACTUALIZADA)
         // ==========================================
         function accesoAdmin() {
             console.log("Intentando acceder al panel...");
             var panelTurnos = document.getElementById('panelAdmin');
             var panelInventario = document.getElementById('admin-inventario');
 
-            if (!panelTurnos) return;
+            if (!panelTurnos) {
+                console.error("Error técnico: No se encontró el elemento 'panelAdmin'.");
+                return;
+            }
 
             if (panelTurnos.classList.contains('hidden')) {
                 var password = prompt("Ingrese la clave de administrador:");
+
                 if (password === "guido2026") {
+                    // Mostramos los paneles físicamente
                     panelTurnos.classList.remove('hidden');
                     if (panelInventario) {
                         panelInventario.classList.remove('hidden');
-                        panelInventario.style.display = "block";
+                        panelInventario.style.display = "block"; // Asegura visibilidad técnica
                     }
-                    // Solo activamos el escuchador la primera vez
+
+                    // --- PASO CLAVE: ACTIVACIÓN DE DATOS ---
+                    // Solo activamos los escuchadores en tiempo real la primera vez
                     if (!datosCargados) {
-                        cargarTurnosAdmin();
-                        datosCargados = true;
+                        console.log("Activando flujos de datos en tiempo real...");
+                        cargarTurnosAdmin(); // Inicia escucha de turnos
+
+                        // VERIFICACIÓN: Asegúrate de tener esta función definida en tu código
+                        if (typeof cargarInventarioAdmin === 'function') {
+                            cargarInventarioAdmin(); // Inicia escucha de productos
+                        } else {
+                            console.warn("La función cargarInventarioAdmin no está definida aún.");
+                        }
+
+                        datosCargados = true; // Bloquea futuras recargas innecesarias
                     }
+
                     panelTurnos.scrollIntoView({ behavior: 'smooth' });
                 } else {
                     alert("Clave incorrecta.");
                 }
             } else {
+                // Lógica para ocultar el panel si ya estaba abierto
                 panelTurnos.classList.add('hidden');
                 if (panelInventario) {
                     panelInventario.classList.add('hidden');
@@ -635,7 +653,7 @@
                 }
             }
         }
-        window.accesoAdmin = accesoAdmin;
+        window.accesoAdmin = accesoAdmin; 
 
         // ==========================================
         // 3. GESTIÓN DE TURNOS EN TIEMPO REAL
@@ -704,7 +722,89 @@
                 }
             }
         }
-        window.borrarRegistro = borrarRegistro; 
+        window.borrarRegistro = borrarRegistro;
+
+        // ==========================================
+        // 4. LÓGICA DE INVENTARIO EN TIEMPO REAL
+        // ==========================================
+
+        // Función para cargar y escuchar el stock
+        function cargarInventarioAdmin() {
+            const tabla = document.getElementById('lista-stock');
+            if (!tabla) return;
+
+            // Escuchador técnico de Firebase para la colección productos
+            db.collection("productos").orderBy("nombre").onSnapshot((snapshot) => {
+                tabla.innerHTML = ""; // Limpieza del DOM antes de actualizar
+                snapshot.forEach((doc) => {
+                    const p = doc.data();
+                    const id = doc.id;
+
+                    // Lógica para determinar si hay que reponer mercadería
+                    const estaBajo = p.stock <= (p.minimo || 5);
+                    const badge = estaBajo ?
+                        `<span class="bg-red-600 text-[10px] px-2 py-1 rounded font-bold text-white">PEDIR YA</span>` :
+                        `<span class="bg-green-600 text-[10px] px-2 py-1 rounded text-white font-bold">OK</span>`;
+
+                    tabla.innerHTML += `
+                <tr class="border-b border-gray-700 hover:bg-gray-800 transition">
+                    <td class="p-4 font-bold text-gray-200">${p.nombre}</td>
+                    <td class="p-4 text-center text-xl font-mono text-white">${p.stock}</td>
+                    <td class="p-4 text-center">${badge}</td>
+                    <td class="p-4 text-center">
+                        <button onclick="actualizarStock('${id}', 1)" class="bg-gray-600 hover:bg-green-600 px-3 py-1 rounded text-white font-bold">+</button>
+                        <button onclick="actualizarStock('${id}', -1)" class="bg-gray-600 hover:bg-red-600 px-3 py-1 rounded ml-1 text-white font-bold">-</button>
+                        <button onclick="eliminarProducto('${id}')" class="ml-4 text-gray-500 hover:text-red-400 text-sm">🗑</button>
+                    </td>
+                </tr>`;
+                });
+            });
+        }
+
+        // Función de programación para sumar o restar stock
+        function actualizarStock(id, cantidad) {
+            db.collection("productos").doc(id).update({
+                stock: firebase.firestore.FieldValue.increment(cantidad)
+            }).catch(error => console.error("Error al actualizar stock:", error));
+        }
+
+        // Función para eliminar un producto del inventario
+        function eliminarProducto(id) {
+            if(confirm("¿Deseas eliminar este producto permanentemente?")) {
+                db.collection("productos").doc(id).delete();
+            }
+        }
+
+        // Función para agregar nuevos productos desde el formulario de admin
+        async function agregarProducto() {
+            const nombre = document.getElementById('inv-nombre').value;
+            const stock = parseInt(document.getElementById('inv-stock').value);
+            const minimo = parseInt(document.getElementById('inv-minimo').value) || 5;
+
+            if (nombre && !isNaN(stock)) {
+                try {
+                    await db.collection("productos").add({
+                        nombre: nombre,
+                        stock: stock,
+                        minimo: minimo
+                    });
+                    // Limpieza de campos mediante programación
+                    document.getElementById('inv-nombre').value = "";
+                    document.getElementById('inv-stock').value = "";
+                    document.getElementById('inv-minimo').value = "";
+                    alert("¡Producto agregado al sistema!");
+                } catch (e) {
+                    console.error("Error al guardar producto:", e);
+                }
+            } else {
+                alert("Por favor, completa nombre y stock inicial.");
+            }
+        }
+
+        // Exponemos las funciones al ámbito global (window)
+        window.actualizarStock = actualizarStock;
+        window.eliminarProducto = eliminarProducto;
+        window.agregarProducto = agregarProducto;
     </script>
 </body>
 </html>
