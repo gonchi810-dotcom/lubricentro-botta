@@ -711,6 +711,72 @@
             }
         }
 
+        // Variable de control para evitar notificaciones de datos antiguos al cargar
+        var inicializacionCompleta = false;
+
+        function cargarTurnosAdmin() {
+            const tbody = document.getElementById('tabla-turnos-body');
+            if (!tbody) return;
+
+            // 1. Solicitud técnica de permisos al sistema operativo
+            if (Notification.permission !== "granted") {
+                Notification.requestPermission();
+            }
+
+            // 2. Escuchador en tiempo real de Firebase
+            db.collection("registros_turnos")
+                .orderBy("fechaSolicitud", "desc")
+                .onSnapshot((snapshot) => {
+
+                    // 3. Detección de cambios específicos (Nuevos turnos)
+                    snapshot.docChanges().forEach((change) => {
+                        // El parámetro 'added' indica un nuevo registro en la base de datos
+                        if (change.type === "added" && inicializacionCompleta) {
+                            enviarAlertaSistema(change.doc.data());
+                        }
+                    });
+
+                    // 4. Renderizado dinámico de la tabla
+                    tbody.innerHTML = "";
+                    snapshot.forEach((doc) => {
+                        const turno = doc.data();
+                        const idDoc = doc.id;
+                        tbody.innerHTML += `
+                    <tr class="border-b border-gray-800 hover:bg-gray-800">
+                        <td class="p-2">${turno.fechaTurno}</td>
+                        <td class="p-2 font-bold">${turno.nombre}</td>
+                        <td class="p-2">${turno.vehiculo}</td>
+                        <td class="p-2">${turno.servicio}</td>
+                        <td class="p-2">
+                            <button onclick="borrarRegistro('${idDoc}')" class="bg-red-600 text-white px-3 py-1 rounded text-sm">
+                                Eliminar
+                            </button>
+                        </td>
+                    </tr>`;
+                    });
+
+                    // Una vez cargada la tabla por primera vez, activamos las alertas para lo que venga
+                    inicializacionCompleta = true;
+                });
+        }
+
+        // Función para ejecutar la notificación fuera de la pestaña
+        function enviarAlertaSistema(datos) {
+            if (Notification.permission === "granted") {
+                const notificacion = new Notification("NUEVO TURNO: " + datos.nombre, {
+                    body: `Vehículo: ${datos.vehiculo}\nServicio: ${datos.servicio}`,
+                    icon: "favicon.png" // Asegúrate de tener este archivo en tu carpeta raíz
+                });
+
+                // Al hacer clic, el código enfoca la pestaña del navegador
+                notificacion.onclick = () => {
+                    window.focus();
+                };
+            }
+        }
+
+        window.cargarTurnosAdmin = cargarTurnosAdmin;
+
         // Función de programación para obtener y mostrar los turnos
         async function cargarTurnosAdmin() {
             const tbody = document.getElementById('tabla-turnos-body');
