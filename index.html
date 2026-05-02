@@ -725,18 +725,24 @@
 
                 querySnapshot.forEach((doc) => {
                     const turno = doc.data();
+                    const idUnico = doc.id; // Parámetro técnico esencial para identificar el registro
 
-                    // Creamos la fila de la tabla mediante programación
+                    // Añadimos una celda con el botón que ejecutará la función de borrado
                     const fila = `
-                <tr class="border-b border-gray-800 hover:bg-gray-800">
-                    <td class="p-2">${turno.fechaTurno}</td>
-                    <td class="p-2 font-bold">${turno.nombre}</td>
-                    <td class="p-2">${turno.vehiculo}</td>
-                    <td class="p-2">${turno.servicio}</td>
-                </tr>
-            `;
+        <tr class="border-b border-gray-800 hover:bg-gray-800">
+            <td class="p-2">${turno.fechaTurno}</td>
+            <td class="p-2 font-bold">${turno.nombre}</td>
+            <td class="p-2">${turno.vehiculo}</td>
+            <td class="p-2">${turno.servicio}</td>
+            <td class="p-2">
+                <button onclick="borrarRegistro('${idUnico}')" class="bg-red-600 hover:bg-red-800 text-white px-3 py-1 rounded transition-colors">
+                    Eliminar
+                </button>
+            </td>
+        </tr>
+    `;
                     tbody.innerHTML += fila;
-                });
+                }); 
 
             } catch (error) {
                 console.error("Error de programación al leer datos:", error);
@@ -745,6 +751,28 @@
 
         // Ejecutamos la carga cuando la página esté lista
         document.addEventListener('DOMContentLoaded', cargarTurnosAdmin);
+
+        // Función de programación para eliminar un turno específico
+        async function borrarRegistro(id) {
+            // Validación de seguridad para el usuario
+            if (confirm("¿Estás seguro de que deseas eliminar este registro?")) {
+                try {
+                    // Instrucción técnica para borrar el documento en Firestore
+                    await db.collection("registros_turnos").doc(id).delete();
+
+                    console.log("Registro eliminado con éxito. ID:", id);
+
+                    // Refrescamos la tabla llamando de nuevo a la función de carga
+                    cargarTurnosAdmin();
+                } catch (error) {
+                    console.error("Error de programación al intentar borrar:", error);
+                    alert("No se pudo eliminar el registro. Inténtalo de nuevo.");
+                }
+            }
+        }
+
+        // Aseguramos la disponibilidad global para el atributo onclick
+        window.borrarRegistro = borrarRegistro;
     </script>
 </body>
 </html>
