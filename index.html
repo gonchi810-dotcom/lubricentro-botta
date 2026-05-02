@@ -476,23 +476,122 @@
     
 
     <script>
-        // PEGA AQUÍ TUS DATOS DE CONFIGURACIÓN DE FIREBASE (El paso 1.4)
+
+        // ==========================================
+        // 1. CONFIGURACIÓN E INICIALIZACIÓN
+        // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyAUaiNRmyhmpSuiA2c2vzA8sEVH8nDVoqE",
             authDomain: "app-guido.firebaseapp.com",
             projectId: "app-guido",
             storageBucket: "app-guido.firebasestorage.app",
             messagingSenderId: "41622599561",
-            appId: "1:41622599561:web:8baa72602dce22f9a85358",
-            measurementId: "G-06HM92W4S1"
+            appId: "1:41622599561:web:8baa72602dce22f9a85358"
         };
 
-        // Inicializar Firebase
+        // Inicializamos Firebase una sola vez al principio
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        firebase.analytics();
 
-        // --- LÓGICA DE SOLICITUD DE TURNO (CORRECCIÓN TÉCNICA) ---
+        // Variables de control de estado
+        let estaProcesando = false;
+        let adminActivado = false;
+
+        // ==========================================
+        // 2. PANEL DE ADMINISTRACIÓN (ACCESO)
+        // ==========================================
+        function accesoAdmin() {
+            const password = prompt("Ingrese la clave de administrador:");
+            if (password === "guido2026") {
+                document.getElementById('panelAdmin').classList.remove('hidden');
+                document.getElementById('admin-inventario').style.display = "block";
+
+                // Solo activamos los escuchadores si no lo hemos hecho ya
+                if (!adminActivado) {
+                    activarEscuchadoresRealTime();
+                    adminActivado = true;
+                }
+                document.getElementById('panelAdmin').scrollIntoView({ behavior: 'smooth' });
+            } else {
+                alert("Clave incorrecta.");
+            }
+        }
+        window.accesoAdmin = accesoAdmin;
+
+        // ==========================================
+        // 3. FUNCIONES DE CARGA (TIEMPO REAL)
+        // ==========================================
+        function activarEscuchadoresRealTime() {
+            console.log("Conectando con Firebase para obtener datos...");
+
+            // A. ESCUCHAR TURNOS
+            const tbodyTurnos = document.getElementById('tabla-turnos-body');
+            db.collection("registros_turnos").orderBy("fechaSolicitud", "desc").onSnapshot((snapshot) => {
+                tbodyTurnos.innerHTML = "";
+                if (snapshot.empty) {
+                    tbodyTurnos.innerHTML = `<tr><td colspan="5" class="p-4 text-center">No hay turnos registrados.</td></tr>`;
+                }
+                snapshot.forEach((doc) => {
+                    const t = doc.data();
+                    tbodyTurnos.innerHTML += `
+                <tr class="border-b border-gray-800">
+                    <td class="p-2">${t.fechaTurno || '---'}</td>
+                    <td class="p-2 font-bold">${t.nombre || '---'}</td>
+                    <td class="p-2">${t.vehiculo || '---'}</td>
+                    <td class="p-2">${t.servicio || '---'}</td>
+                    <td class="p-2"><button onclick="borrarRegistro('${doc.id}')" class="bg-red-600 px-2 rounded">Eliminar</button></td>
+                </tr>`;
+                });
+            });
+
+            // B. ESCUCHAR INVENTARIO
+            const tbodyStock = document.getElementById('lista-stock');
+            db.collection("productos").orderBy("nombre").onSnapshot((snapshot) => {
+                tbodyStock.innerHTML = "";
+                snapshot.forEach((doc) => {
+                    const p = doc.data();
+                    const id = doc.id;
+                    const alerta = p.stock <= (p.minimo || 5) ? '⚠️ PEDIR' : '✅ OK';
+                    tbodyStock.innerHTML += `
+                <tr class="border-b border-gray-700">
+                    <td class="p-4">${p.nombre}</td>
+                    <td class="p-4 text-center font-mono">${p.stock}</td>
+                    <td class="p-4 text-center">${alerta}</td>
+                    <td class="p-4 text-center">
+                        <button onclick="actualizarStock('${id}', 1)" class="bg-gray-600 px-2 rounded">+</button>
+                        <button onclick="actualizarStock('${id}', -1)" class="bg-gray-600 px-2 rounded ml-1">-</button>
+                        <button onclick="eliminarProducto('${id}')" class="ml-4 text-gray-500">🗑</button>
+                    </td>
+                </tr>`;
+                });
+            });
+        }
+
+        // ==========================================
+        // 4. ACCIONES DE BASE DE DATOS
+        // ==========================================
+        async function borrarRegistro(id) {
+            if (confirm("¿Eliminar este turno?")) {
+                await db.collection("registros_turnos").doc(id).delete();
+            }
+        }
+        window.borrarRegistro = borrarRegistro;
+
+        function actualizarStock(id, n) {
+            db.collection("productos").doc(id).update({
+                stock: firebase.firestore.FieldValue.increment(n)
+            });
+        }
+        window.actualizarStock = actualizarStock;
+
+        async function eliminarProducto(id) {
+            if(confirm("¿Borrar producto?")) {
+                await db.collection("productos").doc(id).delete();
+            }
+        }
+        window.eliminarProducto = eliminarProducto;
+
+        // Re-vincular el envío de turnos al nuevo 'db'
         document.getElementById('formTurnos').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (estaProcesando) return;
@@ -502,71 +601,32 @@
             const nombre = document.getElementById('nombreCliente').value;
             const auto = document.getElementById('vehiculoCliente').value;
 
-            // Referencias técnicas a las colecciones
             const diaRef = db.collection("cupos").doc(fecha);
-
-            // PASO 1: Generar una referencia con ID automático para el registro
-            // Esto asegura que tengamos un lugar donde guardar los datos del cliente
             const registroRef = db.collection("registros_turnos").doc();
 
             estaProcesando = true;
-            const btnSubmit = e.target.querySelector('button[type="submit"]');
-            btnSubmit.innerText = "Procesando...";
-            btnSubmit.disabled = true;
-
             try {
                 await db.runTransaction(async (transaction) => {
                     const doc = await transaction.get(diaRef);
                     const datos = doc.exists ? doc.data() : {};
-                    const cantidadActual = datos[servicio] || 0;
+                    const cantidad = datos[servicio] || 0;
 
-                    const LIMITES = {
-                        "Cambio de Aceite": 5,
-                        "Mecánica Ligera": 2,
-                        "Escaneo Computarizado": 4,
-                        "Baterías": 6
-                    };
-
-                    if (cantidadActual >= LIMITES[servicio]) {
-                        throw "Cupo lleno";
-                    }
-
-                    // PASO 2: Actualizar el cupo global (Esto sí te funcionaba)
-                    transaction.set(diaRef, {
-                        ...datos,
-                        [servicio]: cantidadActual + 1
-                    }, { merge: true });
-
-                    // PASO 3: Guardar el registro detallado (Esto es lo que falta)
-                    // Usamos transaction.set para que se guarde junto con el cupo
+                    transaction.set(diaRef, { ...datos, [servicio]: cantidad + 1 }, { merge: true });
                     transaction.set(registroRef, {
-                        nombre: nombre,
-                        vehiculo: auto,
-                        servicio: servicio,
-                        fechaTurno: fecha,
-                        fechaSolicitud: firebase.firestore.FieldValue.serverTimestamp(), // Hora oficial del servidor
-                        estado: "confirmado"
+                        nombre, vehiculo: auto, servicio, fechaTurno: fecha,
+                        fechaSolicitud: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 });
-
-                alert("¡Turno registrado con éxito!");
+                alert("¡Turno registrado!");
                 e.target.reset();
-
             } catch (error) {
-                console.error("ERROR DE PROGRAMACIÓN AL GUARDAR:", error);
-                if (error === "Cupo lleno") {
-                    alert("No hay más cupos para este servicio.");
-                } else {
-                    alert("Hubo un problema técnico al guardar el turno.");
-                }
+                alert("Error al guardar.");
             } finally {
                 estaProcesando = false;
-                btnSubmit.innerText = "SOLICITAR TURNO";
-                btnSubmit.disabled = false;
             }
         });
-
-        function enviarWhatsApp() {
+        
+                function enviarWhatsApp() {
             const nombre = document.getElementById('nombreCliente').value;
             const auto = document.getElementById('vehiculoCliente').value;
             const servicio = document.getElementById('servicioCliente').value;
