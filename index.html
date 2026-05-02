@@ -594,19 +594,15 @@
             window.open(`https://api.whatsapp.com/send?phone=${miTelefono}&text=${texto}`, '_blank');
         }
 
-        // 1. Declaramos la variable de estado fuera de cualquier función
-        var datosCargados = false;
-
-        // 2. Definimos la función accesoAdmin
         function accesoAdmin() {
-            console.log("Intentando acceder al panel..."); // Depuración
+            console.log("Intentando acceder al panel...");
 
             var panelTurnos = document.getElementById('panelAdmin');
+            // Usamos el ID que mencionaste: admin-inventario
             var panelInventario = document.getElementById('admin-inventario');
 
-            // Validación para evitar que el código falle si los IDs no coinciden
             if (!panelTurnos) {
-                console.error("No se encontró el elemento 'panelAdmin'. Revisa el ID en tu HTML.");
+                console.error("No se encontró 'panelAdmin'. Revisa el ID en tu HTML.");
                 return;
             }
 
@@ -614,8 +610,16 @@
                 var password = prompt("Ingrese la clave de administrador:");
 
                 if (password === "guido2026") {
+                    // Mostramos el panel de Turnos
                     panelTurnos.classList.remove('hidden');
-                    if (panelInventario) panelInventario.classList.remove('hidden');
+
+                    // Lógica de programación para mostrar el Inventario si existe
+                    if (panelInventario) {
+                        console.log("Mostrando panel de inventario...");
+                        panelInventario.classList.remove('hidden');
+                    } else {
+                        console.warn("No se encontró el elemento 'admin-inventario' en el HTML.");
+                    }
 
                     if (!datosCargados) {
                         cargarTurnosAdmin();
@@ -626,13 +630,16 @@
                     alert("Clave incorrecta.");
                 }
             } else {
+                // Al cerrar, ocultamos ambos paneles
                 panelTurnos.classList.add('hidden');
-                if (panelInventario) panelInventario.classList.add('hidden');
+                if (panelInventario) {
+                    panelInventario.classList.add('hidden');
+                }
             }
         }
 
-        // 3. Aunque no sea módulo, esto asegura que el onclick siempre la encuentre
-        window.accesoAdmin = accesoAdmin;
+        // Mantenemos la disponibilidad global
+        window.accesoAdmin = accesoAdmin; 
         
               // ==========================================
         // 4. LÓGICA DE INVENTARIO (PEGAR AQUÍ)
