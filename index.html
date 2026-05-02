@@ -492,81 +492,78 @@
         const db = firebase.firestore();
         firebase.analytics();
 
-        // FUNCIÓN PARA SOLICITAR TURNO CON CUPO GLOBAL Y REGISTRO DE CLIENTE
-        // Variable de seguridad para evitar múltiples envíos
-        let estaProcesando = false;
-
+        // --- LÓGICA DE SOLICITUD DE TURNO (CORREGIDA) ---
         document.getElementById('formTurnos').addEventListener('submit', async function(e) {
             e.preventDefault();
-
             if (estaProcesando) return;
 
-            // Captura de datos del DOM
+            // 1. Captura y validación básica mediante programación
             const fecha = document.getElementById('fechaTurno').value;
             const servicio = document.getElementById('servicioCliente').value;
             const nombre = document.getElementById('nombreCliente').value;
             const auto = document.getElementById('vehiculoCliente').value;
 
-            const LIMITES = {
-                "Cambio de Aceite": 5,
-                "Mecánica Ligera": 2,
-                "Escaneo Computarizado": 4,
-                "Baterías": 6
-            };
+            if (!fecha || !servicio || !nombre || !auto) {
+                alert("Por favor, completa todos los campos del formulario.");
+                return;
+            }
 
-            // Referencias de programación en la base de datos
+            // Referencias técnicas a las colecciones de Firebase
             const diaRef = db.collection("cupos").doc(fecha);
-            const registroRef = db.collection("registros_turnos").doc(); // Crea un nuevo ID único para el cliente
+            const registroRef = db.collection("registros_turnos").doc(); // Genera el ID del nuevo registro
 
-            // Bloqueo de interfaz
             estaProcesando = true;
             const btnSubmit = e.target.querySelector('button[type="submit"]');
             btnSubmit.innerText = "Procesando...";
             btnSubmit.disabled = true;
 
             try {
+                console.log("Iniciando transacción para el cliente:", nombre);
+
                 await db.runTransaction(async (transaction) => {
                     const doc = await transaction.get(diaRef);
                     const datos = doc.exists ? doc.data() : {};
                     const cantidadActual = datos[servicio] || 0;
 
+                    const LIMITES = {
+                        "Cambio de Aceite": 5,
+                        "Mecánica Ligera": 2,
+                        "Escaneo Computarizado": 4,
+                        "Baterías": 6
+                    };
+
                     if (cantidadActual >= LIMITES[servicio]) {
-                        throw "Cupo lleno"; // Cancela la transacción
+                        throw "Cupo lleno";
                     }
 
-                    // PASO 1: Actualizar contador de cupos globales
+                    // PASO A: Actualizar el cupo del día
                     transaction.set(diaRef, {
                         ...datos,
                         [servicio]: cantidadActual + 1
                     }, { merge: true });
 
-                    // PASO 2: Guardar el registro detallado del cliente (Lo que querías agregar)
+                    // PASO B: Crear físicamente el registro en la colección 'registros_turnos'
+                    // Esto es lo que hará que la colección aparezca en tu consola de Firebase
                     transaction.set(registroRef, {
                         nombre: nombre,
                         vehiculo: auto,
                         servicio: servicio,
                         fechaTurno: fecha,
-                        fechaSolicitud: new Date(),
+                        fechaSolicitud: firebase.firestore.FieldValue.serverTimestamp(),
                         estado: "confirmado"
                     });
                 });
 
-                // Solo si la transacción fue exitosa, enviamos el WhatsApp
-                const miTelefono = "5492214980640";
-                const texto = `Hola Lubricentro Guido!%0A*Turno Confirmado*%0A*Nombre:* ${nombre}%0A*Vehículo:* ${auto}%0A*Servicio:* ${servicio}%0A*Fecha:* ${fecha}`;
-
-                // Usamos window.open para no cerrar tu página actual
-                window.open(`https://api.whatsapp.com/send?phone=${miTelefono}&text=${texto}`, '_blank');
-
-                alert("¡Turno registrado y cupo reservado con éxito!");
+                console.log("¡Éxito! Registro guardado con ID:", registroRef.id);
+                alert("¡Turno registrado con éxito!");
                 e.target.reset();
 
             } catch (error) {
+                console.error("ERROR TÉCNICO AL GUARDAR:", error);
                 if (error === "Cupo lleno") {
-                    alert(`Lo sentimos, no hay más cupos para ${servicio} en esa fecha.`);
+                    alert("Lo sentimos, no hay cupos para esa fecha.");
                 } else {
-                    console.error("Error de programación:", error);
-                    alert("Hubo un problema técnico al guardar tu turno.");
+                    alert("Hubo un error al guardar el registro. Revisa la consola para más detalles.");
                 }
             } finally {
                 estaProcesando = false;
