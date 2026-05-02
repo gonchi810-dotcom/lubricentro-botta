@@ -592,27 +592,32 @@
         window.eliminarProducto = eliminarProducto;
 
         // ==========================================
-        // FORMULARIO DE TURNOS (OPTIMIZADO PARA MÓVILES)
+        // EVENTO DE TURNO (SOLUCIÓN DEFINITIVA PC/MÓVIL)
         // ==========================================
         document.getElementById('formTurnos').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (estaProcesando) return;
 
+            // Captura de datos del formulario
             const nombre = document.getElementById('nombreCliente').value;
             const auto = document.getElementById('vehiculoCliente').value;
             const servicio = document.getElementById('servicioCliente').value;
             const fecha = document.getElementById('fechaTurno').value;
 
+            // Referencias de Firebase
             const diaRef = db.collection("cupos").doc(fecha);
             const registroRef = db.collection("registros_turnos").doc();
 
+            // Detección de dispositivo móvil
+            const esMovil = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
             estaProcesando = true;
             const btnSubmit = e.target.querySelector('button[type="submit"]');
-            btnSubmit.innerText = "Procesando...";
+            btnSubmit.innerText = "Guardando...";
             btnSubmit.disabled = true;
 
             try {
-                // 1. Guardado técnico en Firebase
+                // 1. Guardado en la base de datos
                 await db.runTransaction(async (transaction) => {
                     const doc = await transaction.get(diaRef);
                     const datos = doc.exists ? doc.data() : {};
@@ -620,33 +625,37 @@
 
                     transaction.set(diaRef, { ...datos, [servicio]: cantidad + 1 }, { merge: true });
                     transaction.set(registroRef, {
-                        nombre,
-                        vehiculo: auto,
-                        servicio,
-                        fechaTurno: fecha,
+                        nombre, vehiculo: auto, servicio, fechaTurno: fecha,
                         fechaSolicitud: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 });
 
-                // 2. Construcción de enlace universal (wa.me)
+                // 2. Preparación del mensaje de WhatsApp
                 const miTelefono = "5492214980640";
-                const mensajeTexto = `*Lubricentro Botta*%0A` +
+                const mensaje = `*Lubricentro Botta*%0A` +
                     `Turno Confirmado%0A` +
                     `*Cliente:* ${encodeURIComponent(nombre)}%0A` +
                     `*Vehículo:* ${encodeURIComponent(auto)}%0A` +
                     `*Servicio:* ${encodeURIComponent(servicio)}%0A` +
                     `*Fecha:* ${fecha}`;
 
-                // 3. Redirección compatible con móviles
-                // wa.me es más efectivo para disparar la apertura de la App en móviles
-                const urlFinal = `https://wa.me/${miTelefono}?text=${mensajeTexto}`;
+                const urlFinal = `https://wa.me/${miTelefono}?text=${mensaje}`;
 
-                // Usamos asignación directa para máxima compatibilidad
-                window.location = urlFinal;
+                // 3. EJECUCIÓN SEGÚN DISPOSITIVO
+                if (esMovil) {
+                    // En celulares: Redirigimos ANTES del alert para evitar bloqueos del sistema
+                    window.location.assign(urlFinal);
+                } else {
+                    // En PC: Alert y luego redirección
+                    alert("¡Turno guardado con éxito!");
+                    window.location.href = urlFinal;
+                }
+
+                e.target.reset();
 
             } catch (error) {
-                console.error("Error en la transacción:", error);
-                alert("Hubo un error técnico al procesar el turno.");
+                console.error("Error técnico:", error);
+                alert("Hubo un error al procesar el código del turno.");
             } finally {
                 estaProcesando = false;
                 btnSubmit.innerText = "SOLICITAR TURNO";
