@@ -826,25 +826,19 @@
         window.eliminarProducto = eliminarProducto;
         window.agregarProducto = agregarProducto;
 
+        // --- EVENTO DE FORMULARIO CON ENVÍO DE WHATSAPP INTEGRADO ---
         document.getElementById('formTurnos').addEventListener('submit', async function(e) {
             e.preventDefault();
-
             if (estaProcesando) return;
 
-            // Captura de datos del DOM
-            const fecha = document.getElementById('fechaTurno').value;
-            const servicio = document.getElementById('servicioCliente').value;
+            // Recolección de datos mediante programación
             const nombre = document.getElementById('nombreCliente').value;
             const auto = document.getElementById('vehiculoCliente').value;
+            const servicio = document.getElementById('servicioCliente').value;
+            const fecha = document.getElementById('fechaTurno').value;
 
-            if (!fecha || !nombre) {
-                alert("Por favor completa los datos básicos.");
-                return;
-            }
-
-            // Referencias de programación
             const diaRef = db.collection("cupos").doc(fecha);
-            const registroRef = db.collection("registros_turnos").doc(); // Genera un ID único
+            const registroRef = db.collection("registros_turnos").doc();
 
             estaProcesando = true;
             const btnSubmit = e.target.querySelector('button[type="submit"]');
@@ -852,52 +846,43 @@
             btnSubmit.disabled = true;
 
             try {
+                // 1. Guardado técnico en Firebase
                 await db.runTransaction(async (transaction) => {
                     const doc = await transaction.get(diaRef);
                     const datos = doc.exists ? doc.data() : {};
-                    const cantidadActual = datos[servicio] || 0;
+                    const cantidad = datos[servicio] || 0;
 
-                    const LIMITES = {
-                        "Cambio de Aceite": 5,
-                        "Mecánica Ligera": 2,
-                        "Frenos/Suspensión": 4,
-                        "Diagnostico Computarizado": 4
-                    };
-
-                    if (cantidadActual >= (LIMITES[servicio] || 5)) {
-                        throw "Cupo lleno";
-                    }
-
-                    // PASO 1: Actualizar contador de cupos
-                    transaction.set(diaRef, {
-                        ...datos,
-                        [servicio]: cantidadActual + 1
-                    }, { merge: true });
-
-                    // PASO 2: CREAR EL REGISTRO DEL CLIENTE (Lo que faltaba)
+                    transaction.set(diaRef, { ...datos, [servicio]: cantidad + 1 }, { merge: true });
                     transaction.set(registroRef, {
-                        nombre: nombre,
-                        vehiculo: auto,
-                        servicio: servicio,
-                        fechaTurno: fecha,
-                        fechaSolicitud: firebase.firestore.FieldValue.serverTimestamp(),
-                        estado: "confirmado"
+                        nombre, vehiculo: auto, servicio, fechaTurno: fecha,
+                        fechaSolicitud: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 });
 
-                alert("¡Turno registrado con éxito!");
-                // Aquí puedes llamar a tu función de enviar WhatsApp si la tienes
+                // 2. Lógica de envío a WhatsApp (Solo si la transacción fue exitosa)
+                const miTelefono = "5492214980640"; // Tu número de contacto
+                const mensajeTexto = `Hola Lubricentro Botta!%0A` +
+                    `*Nuevo Turno Registrado*%0A` +
+                    `*Cliente:* ${nombre}%0A` +
+                    `*Vehículo:* ${auto}%0A` +
+                    `*Servicio:* ${servicio}%0A` +
+                    `*Fecha:* ${fecha}`;
+
+                // Abrir WhatsApp en pestaña nueva mediante programación
+                window.open(`https://api.whatsapp.com/send?phone=${miTelefono}&text=${mensajeTexto}`, '_blank');
+
+                alert("¡Turno registrado y mensaje enviado!");
                 e.target.reset();
 
             } catch (error) {
                 console.error("Error técnico:", error);
-                alert(error === "Cupo lleno" ? "Lo sentimos, no hay cupos." : "Hubo un problema al guardar.");
+                alert("Hubo un problema al registrar el turno.");
             } finally {
                 estaProcesando = false;
                 btnSubmit.innerText = "SOLICITAR TURNO";
                 btnSubmit.disabled = false;
             }
-        });
+        }); 
 
        
         function cargarTurnosAdmin() {
