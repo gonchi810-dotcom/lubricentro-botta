@@ -594,13 +594,17 @@
             window.open(`https://api.whatsapp.com/send?phone=${miTelefono}&text=${texto}`, '_blank');
         }
 
-        // --- PASO 1: DECLARACIÓN GLOBAL ---
-        // Esta variable DEBE estar fuera de la función para que no de error
+        // ==========================================
+        // 1. VARIABLES DE CONTROL GLOBAL
+        // ==========================================
         var datosCargados = false;
+        var inicializacionCompleta = false;
 
+        // ==========================================
+        // 2. FUNCIÓN DE ACCESO ADMIN
+        // ==========================================
         function accesoAdmin() {
             console.log("Intentando acceder al panel...");
-
             var panelTurnos = document.getElementById('panelAdmin');
             var panelInventario = document.getElementById('admin-inventario');
 
@@ -608,23 +612,17 @@
 
             if (panelTurnos.classList.contains('hidden')) {
                 var password = prompt("Ingrese la clave de administrador:");
-
                 if (password === "guido2026") {
                     panelTurnos.classList.remove('hidden');
-
                     if (panelInventario) {
                         panelInventario.classList.remove('hidden');
                         panelInventario.style.display = "block";
                     }
-
-                    // --- PASO 2: USO DE LA VARIABLE ---
-                    // Aquí es donde ocurría el ReferenceError si no estaba declarada arriba
+                    // Solo activamos el escuchador la primera vez
                     if (!datosCargados) {
-                        console.log("Cargando datos por primera vez...");
                         cargarTurnosAdmin();
-                        datosCargados = true; // Cambiamos el estado mediante programación
+                        datosCargados = true;
                     }
-
                     panelTurnos.scrollIntoView({ behavior: 'smooth' });
                 } else {
                     alert("Clave incorrecta.");
@@ -637,120 +635,76 @@
                 }
             }
         }
+        window.accesoAdmin = accesoAdmin;
 
-        // PASO 3: Exposición global para el onclick del footer
-        window.accesoAdmin = accesoAdmin; 
-              // ==========================================
-        // 4. LÓGICA DE INVENTARIO (PEGAR AQUÍ)
         // ==========================================
+        // 3. GESTIÓN DE TURNOS EN TIEMPO REAL
+        // ==========================================
+        function cargarTurnosAdmin() {
+            const tbody = document.getElementById('tabla-turnos-body');
+            if (!tbody) return;
 
-        // Escuchar productos en tiempo real
-        db.collection("productos").orderBy("nombre").onSnapshot((snapshot) => {
-            const tabla = document.getElementById('lista-stock');
-            if (!tabla) return;
+            if (Notification.permission !== "granted") {
+                Notification.requestPermission();
+            }
 
-            tabla.innerHTML = "";
-            snapshot.forEach((doc) => {
-                const p = doc.data();
-                const id = doc.id;
-                const estaBajo = p.stock <= (p.minimo || 5);
-                const badge = estaBajo ?
-                    `<span class="bg-red-600 text-[10px] px-2 py-1 rounded font-bold text-white">PEDIR YA</span>` :
-                    `<span class="bg-green-600 text-[10px] px-2 py-1 rounded text-white font-bold">OK</span>`;
+            // Escuchador persistente
+            db.collection("registros_turnos")
+                .orderBy("fechaSolicitud", "desc")
+                .onSnapshot((snapshot) => {
 
-                tabla.innerHTML += `
-                    <tr class="border-b border-gray-700 hover:bg-gray-800 transition">
-                        <td class="p-4 font-bold text-gray-200">${p.nombre}</td>
-                        <td class="p-4 text-center text-xl font-mono text-white">${p.stock}</td>
-                        <td class="p-4 text-center">${badge}</td>
-                        <td class="p-4 text-center">
-                            <button onclick="actualizarStock('${id}', 1)" class="bg-gray-600 hover:bg-green-600 px-3 py-1 rounded text-white font-bold">+</button>
-                            <button onclick="actualizarStock('${id}', -1)" class="bg-gray-600 hover:bg-red-600 px-3 py-1 rounded ml-1 text-white font-bold">-</button>
-                            <button onclick="eliminarProducto('${id}')" class="ml-4 text-gray-500 hover:text-red-400 text-sm">🗑</button>
+                    // Detectar nuevos turnos para notificaciones
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === "added" && inicializacionCompleta) {
+                            enviarAlertaSistema(change.doc.data());
+                        }
+                    });
+
+                    tbody.innerHTML = "";
+                    snapshot.forEach((doc) => {
+                        const turno = doc.data();
+                        const idDoc = doc.id;
+                        tbody.innerHTML += `
+                    <tr class="border-b border-gray-800 hover:bg-gray-800">
+                        <td class="p-2">${turno.fechaTurno}</td>
+                        <td class="p-2 font-bold">${turno.nombre}</td>
+                        <td class="p-2">${turno.vehiculo}</td>
+                        <td class="p-2">${turno.servicio}</td>
+                        <td class="p-2">
+                            <button onclick="borrarRegistro('${idDoc}')" class="bg-red-600 text-white px-3 py-1 rounded text-sm">
+                                Eliminar
+                            </button>
                         </td>
                     </tr>`;
-            });
-        });
-
-        // Función para agregar productos desde el formulario
-        async function agregarProducto() {
-            const nombre = document.getElementById('inv-nombre').value;
-            const stock = parseInt(document.getElementById('inv-stock').value);
-            const minimo = parseInt(document.getElementById('inv-minimo').value) || 5;
-
-            if (nombre && !isNaN(stock)) {
-                try {
-                    await db.collection("productos").add({
-                        nombre: nombre,
-                        stock: stock,
-                        minimo: minimo
                     });
-                    document.getElementById('inv-nombre').value = "";
-                    document.getElementById('inv-stock').value = "";
-                    document.getElementById('inv-minimo').value = "";
-                    alert("Producto agregado!");
-                } catch (e) {
-                    console.error("Error al agregar:", e);
+                    inicializacionCompleta = true;
+                }, (error) => {
+                    console.error("Error en tiempo real:", error);
+                });
+        }
+
+        function enviarAlertaSistema(datos) {
+            if (Notification.permission === "granted") {
+                const notificacion = new Notification("NUEVO TURNO: " + datos.nombre, {
+                    body: `Vehículo: ${datos.vehiculo}\nServicio: ${datos.servicio}`,
+                    icon: "favicon.png"
+                });
+                notificacion.onclick = () => window.focus();
+            }
+        }
+
+        async function borrarRegistro(id) {
+            if (confirm("¿Estás seguro de que deseas eliminar este registro?")) {
+                try {
+                    await db.collection("registros_turnos").doc(id).delete();
+                    console.log("Registro eliminado");
+                    // No hace falta llamar a cargarTurnosAdmin() porque onSnapshot lo hace solo
+                } catch (error) {
+                    console.error("Error al borrar:", error);
                 }
-            } else {
-                alert("Por favor, completa nombre y stock.");
             }
         }
-
-        // Función para sumar/restar stock
-        function actualizarStock(id, cantidad) {
-            db.collection("productos").doc(id).update({
-                stock: firebase.firestore.FieldValue.increment(cantidad)
-            });
-        }
-
-        // Función para eliminar
-        function eliminarProducto(id) {
-            if(confirm("¿Borrar producto?")) {
-                db.collection("productos").doc(id).delete();
-            }
-        }
-
-        // Función de programación para obtener y mostrar los turnos
-        async function cargarTurnosAdmin() {
-            const tbody = document.getElementById('tabla-turnos-body');
-
-            try {
-                // Consultamos la colección 'registros_turnos' ordenada por fecha
-                const querySnapshot = await db.collection("registros_turnos")
-                    .orderBy("fechaSolicitud", "desc")
-                    .get();
-
-                tbody.innerHTML = ""; // Limpiamos la tabla antes de cargar
-
-                querySnapshot.forEach((doc) => {
-                    const turno = doc.data();
-                    const idUnico = doc.id; // Parámetro técnico esencial para identificar el registro
-
-                    // Añadimos una celda con el botón que ejecutará la función de borrado
-                    const fila = `
-        <tr class="border-b border-gray-800 hover:bg-gray-800">
-            <td class="p-2">${turno.fechaTurno}</td>
-            <td class="p-2 font-bold">${turno.nombre}</td>
-            <td class="p-2">${turno.vehiculo}</td>
-            <td class="p-2">${turno.servicio}</td>
-            <td class="p-2">
-                <button onclick="borrarRegistro('${idUnico}')" class="bg-red-600 hover:bg-red-800 text-white px-3 py-1 rounded transition-colors">
-                    Eliminar
-                </button>
-            </td>
-        </tr>
-    `;
-                    tbody.innerHTML += fila;
-                }); 
-
-            } catch (error) {
-                console.error("Error de programación al leer datos:", error);
-            }
-        }
-
-        // Ejecutamos la carga cuando la página esté lista
-        document.addEventListener('DOMContentLoaded', cargarTurnosAdmin);
+        window.borrarRegistro = borrarRegistro; 
     </script>
 </body>
 </html>
