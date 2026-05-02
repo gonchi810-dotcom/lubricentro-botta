@@ -594,48 +594,42 @@
             window.open(`https://api.whatsapp.com/send?phone=${miTelefono}&text=${texto}`, '_blank');
         }
 
+        // --- PASO 1: DECLARACIÓN GLOBAL ---
+        // Esta variable DEBE estar fuera de la función para que no de error
+        var datosCargados = false;
+
         function accesoAdmin() {
             console.log("Intentando acceder al panel...");
 
             var panelTurnos = document.getElementById('panelAdmin');
             var panelInventario = document.getElementById('admin-inventario');
 
-            // Verificación de seguridad en la consola
-            console.log("Estado de panelTurnos:", panelTurnos);
-            console.log("Estado de panelInventario:", panelInventario);
-
-            if (!panelTurnos) {
-                console.error("Error: No se encontró 'panelAdmin'. Revisa el ID en tu HTML.");
-                return;
-            }
+            if (!panelTurnos) return;
 
             if (panelTurnos.classList.contains('hidden')) {
                 var password = prompt("Ingrese la clave de administrador:");
 
                 if (password === "guido2026") {
-                    // Mostramos los turnos
                     panelTurnos.classList.remove('hidden');
 
-                    // Mostramos el inventario con una validación extra
                     if (panelInventario) {
                         panelInventario.classList.remove('hidden');
-                        // Forzado de seguridad por si la clase no responde
                         panelInventario.style.display = "block";
-                        console.log("Se quitó 'hidden' y se aplicó display:block al inventario.");
-                    } else {
-                        console.warn("Atención: El elemento con ID 'admin-inventario' no existe en este archivo HTML.");
                     }
 
+                    // --- PASO 2: USO DE LA VARIABLE ---
+                    // Aquí es donde ocurría el ReferenceError si no estaba declarada arriba
                     if (!datosCargados) {
+                        console.log("Cargando datos por primera vez...");
                         cargarTurnosAdmin();
-                        datosCargados = true;
+                        datosCargados = true; // Cambiamos el estado mediante programación
                     }
+
                     panelTurnos.scrollIntoView({ behavior: 'smooth' });
                 } else {
                     alert("Clave incorrecta.");
                 }
             } else {
-                // Al cerrar, ocultamos ambos
                 panelTurnos.classList.add('hidden');
                 if (panelInventario) {
                     panelInventario.classList.add('hidden');
@@ -644,6 +638,7 @@
             }
         }
 
+        // PASO 3: Exposición global para el onclick del footer
         window.accesoAdmin = accesoAdmin; 
               // ==========================================
         // 4. LÓGICA DE INVENTARIO (PEGAR AQUÍ)
