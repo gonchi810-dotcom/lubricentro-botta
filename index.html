@@ -288,6 +288,25 @@
         </div>
     </section>
 
+<section id="admin-panel" class="p-8 bg-gray-900 text-white">
+    <h2 class="text-2xl font-bold mb-4">Gestión de Turnos - Lubricentro</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+            <tr class="border-b border-gray-700 text-[#7a9f01]">
+                <th class="p-2">Fecha Turno</th>
+                <th class="p-2">Cliente</th>
+                <th class="p-2">Vehículo</th>
+                <th class="p-2">Servicio</th>
+            </tr>
+            </thead>
+            <tbody id="tabla-turnos-body">
+            <!-- El código JavaScript insertará los datos aquí -->
+            </tbody>
+        </table>
+    </div>
+</section>
+
     <footer class="bg-gray-800 py-6 text-center border-t border-gray-700 mt-10">
         <div class="container mx-auto px-2">
             <h4 class="text-custom-amarillo font-bold mb-2">Lubricentro y Mecanica Botta</h4>
@@ -654,6 +673,41 @@
                 db.collection("productos").doc(id).delete();
             }
         }
+
+        // Función de programación para obtener y mostrar los turnos
+        async function cargarTurnosAdmin() {
+            const tbody = document.getElementById('tabla-turnos-body');
+
+            try {
+                // Consultamos la colección 'registros_turnos' ordenada por fecha
+                const querySnapshot = await db.collection("registros_turnos")
+                    .orderBy("fechaSolicitud", "desc")
+                    .get();
+
+                tbody.innerHTML = ""; // Limpiamos la tabla antes de cargar
+
+                querySnapshot.forEach((doc) => {
+                    const turno = doc.data();
+
+                    // Creamos la fila de la tabla mediante programación
+                    const fila = `
+                <tr class="border-b border-gray-800 hover:bg-gray-800">
+                    <td class="p-2">${turno.fechaTurno}</td>
+                    <td class="p-2 font-bold">${turno.nombre}</td>
+                    <td class="p-2">${turno.vehiculo}</td>
+                    <td class="p-2">${turno.servicio}</td>
+                </tr>
+            `;
+                    tbody.innerHTML += fila;
+                });
+
+            } catch (error) {
+                console.error("Error de programación al leer datos:", error);
+            }
+        }
+
+        // Ejecutamos la carga cuando la página esté lista
+        document.addEventListener('DOMContentLoaded', cargarTurnosAdmin);
     </script>
 </body>
 </html>
