@@ -826,12 +826,14 @@
         window.eliminarProducto = eliminarProducto;
         window.agregarProducto = agregarProducto;
 
-        // --- EVENTO DE FORMULARIO CON ENVÍO DE WHATSAPP INTEGRADO ---
+        // ==========================================
+        // EVENTO DE TURNO Y ENVÍO DE WHATSAPP (VERSIÓN ROBUSTA)
+        // ==========================================
         document.getElementById('formTurnos').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (estaProcesando) return;
 
-            // Recolección de datos mediante programación
+            // 1. Captura de datos
             const nombre = document.getElementById('nombreCliente').value;
             const auto = document.getElementById('vehiculoCliente').value;
             const servicio = document.getElementById('servicioCliente').value;
@@ -846,7 +848,7 @@
             btnSubmit.disabled = true;
 
             try {
-                // 1. Guardado técnico en Firebase
+                // 2. Proceso técnico en Firebase
                 await db.runTransaction(async (transaction) => {
                     const doc = await transaction.get(diaRef);
                     const datos = doc.exists ? doc.data() : {};
@@ -859,24 +861,28 @@
                     });
                 });
 
-                // 2. Lógica de envío a WhatsApp (Solo si la transacción fue exitosa)
-                const miTelefono = "5492214980640"; // Tu número de contacto
-                const mensajeTexto = `Hola Lubricentro Botta!%0A` +
-                    `*Nuevo Turno Registrado*%0A` +
+                // 3. GENERACIÓN DEL ENLACE DE WHATSAPP
+                const miTelefono = "5492214980640";
+                // Usamos saltos de línea técnicos (%0A) para el formato
+                const textoMsg = `*Lubricentro Botta*%0A` +
+                    `Turno Confirmado%0A%0A` +
                     `*Cliente:* ${nombre}%0A` +
                     `*Vehículo:* ${auto}%0A` +
                     `*Servicio:* ${servicio}%0A` +
                     `*Fecha:* ${fecha}`;
 
-                // Abrir WhatsApp en pestaña nueva mediante programación
-                window.open(`https://api.whatsapp.com/send?phone=${miTelefono}&text=${mensajeTexto}`, '_blank');
+                const urlWhatsApp = `https://api.whatsapp.com/send?phone=${miTelefono}&text=${textoMsg}`;
 
-                alert("¡Turno registrado y mensaje enviado!");
+                // 4. Apertura inmediata del chat
+                console.log("Abriendo WhatsApp...");
+                window.open(urlWhatsApp, '_blank');
+
+                alert("¡Registro exitoso! Se ha abierto WhatsApp para confirmar.");
                 e.target.reset();
 
             } catch (error) {
-                console.error("Error técnico:", error);
-                alert("Hubo un problema al registrar el turno.");
+                console.error("Error técnico detectado:", error);
+                alert("No se pudo completar el registro.");
             } finally {
                 estaProcesando = false;
                 btnSubmit.innerText = "SOLICITAR TURNO";
